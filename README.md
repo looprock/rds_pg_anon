@@ -315,3 +315,14 @@ JSON blocks also support these global options:
     }
 }
 ```
+
+# Thanks
+
+This project was informed and inspired by:
+- https://www.greenmask.io/
+- https://debezium.io/
+- https://github.com/calazans10/pg_anon
+- https://postgresql-anonymizer.readthedocs.io/en/stable/
+- https://github.com/TantorLabs/pg_anon
+
+If this doesn't fit the bill for you, you may want to check one of those out.
