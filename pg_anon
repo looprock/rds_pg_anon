@@ -227,13 +227,14 @@ def main(**kwargs) -> None:
                 final_log_message = f"Instance information: {tmp_rds_instance}"
                 if snapshot:
                     aws_utils.delete_snapshot_if_exists(snapshot_id)
-                    aws_utils.delete_instance(tmp_rds_instance["id"], snapshot_id)
+                    snapshot_info = aws_utils.delete_instance(tmp_rds_instance["id"], snapshot_id)
                     log_json(f"Snapshot {snapshot_id} created and instance {tmp_rds_instance['id']} deleted.")
                     del tmp_rds_instance["port"]
                     del tmp_rds_instance["endpoint"]
                     tmp_rds_instance["source_instance_id"] = tmp_rds_instance["id"]
                     del tmp_rds_instance["id"]
                     tmp_rds_instance["snapshot_id"] = snapshot_id
+                    tmp_rds_instance["snapshot_arn"] = snapshot_info["snapshot_arn"]
                     os.remove(db_save_file)
                     final_log_message = f"Snapshot information: {tmp_rds_instance}"
                 if aws_secret_name:

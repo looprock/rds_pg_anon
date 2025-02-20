@@ -214,12 +214,17 @@ class AWSUtils:
             #     BackupRetentionPeriod=0,
             #     ApplyImmediately=True
             # )
+            if 'KmsKeyId' in new_instance_details['DBInstances'][0]:
+                kms_key_id = new_instance_details['DBInstances'][0]['KmsKeyId']
+            else:
+                kms_key_id = None
             return {
                 "id": new_instance_id,
                 "endpoint": new_instance_details["DBInstances"][0]["Endpoint"]["Address"],
                 "port": new_instance_details["DBInstances"][0]["Endpoint"]["Port"],
                 "username": user_name,
-                "password": password
+                "password": password,
+                "kms_key_id": kms_key_id
             }
 
         except ClientError as e:
@@ -279,12 +284,17 @@ class AWSUtils:
             log_json(f"Failed to create snapshot: {e}", level='error')
             exit(1)
 
-    def delete_instance(self, instance_id: str, snapshot_id: str) -> None:
+    def delete_instance(self, instance_id: str, snapshot_id: str) -> dict:
         try:
             rds_client = boto3.client('rds')
             # Create a final snapshot before deletion
             rds_client.delete_db_instance(DBInstanceIdentifier=instance_id, SkipFinalSnapshot=False, FinalDBSnapshotIdentifier=snapshot_id)
+            waiter = rds_client.get_waiter('db_snapshot_completed')
+            waiter.wait(DBSnapshotIdentifier=snapshot_id)
+            snapshot_info = rds_client.describe_db_snapshots(DBSnapshotIdentifier=snapshot_id)
+            snapshot_arn = snapshot_info['DBSnapshots'][0]['DBSnapshotArn']
             log_json(f"Deleted RDS instance {instance_id}, final snapshot {snapshot_id} created.")
+            return {"snapshot_arn": snapshot_arn}
         except ClientError as e:
             log_json(f"Failed to delete RDS instance {instance_id}: {e}", level='error')
             exit(1)
