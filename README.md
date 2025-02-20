@@ -1,8 +1,14 @@
 # pg_anon
 
-Replicate and anonymize a postgresql RDS instance to another instance or a snapshot.
+Using the most current snapshot of a postgresql RDS instance, anonymize the data to another instance or a snapshot.
 
 # Limitations
+
+## snapshot
+
+pg_anon requires a snapshot of the source instance.
+
+## anonymization
 
 The current implentation of this only deals with dictionary structures and doesn't support replacing keys or values inside lists outside of those specified in the 'lists' section.
 

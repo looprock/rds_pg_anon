@@ -1,0 +1,24 @@
+{
+    "faker": {
+        "options": ["en_US"],
+        "email": {
+            "domain": "thisisafakedomain.com"
+        }
+    },
+    "columns": {
+            "phone_number": "fake.phone_number()",
+            "first_name": "fake.first_name()",
+            "last_name": "fake.last_name()",
+            "email": "fake.email()",
+            "street": "fake.address()",
+            "zipcode": "fake.zipcode()",
+            "city": "fake.city()",
+            "state": "fake.state()",
+            "country": "fake.country()",
+            "ssn": "fake.ssn()",
+            "social_security_number": "fake.ssn()"
+    },
+    "json": {
+        "defaults": true
+    }
+}
