@@ -70,7 +70,14 @@ def main(**kwargs) -> None:
     db_name = os.getenv('PGDATABASE')
     rds_source_id = os.getenv('PGANON_RDS_SOURCE_ID')
     s3_bucket_name = os.getenv('PGANON_S3_BUCKET_NAME')
+    pganon_environment = os.getenv('PGANON_ENVIRONMENT')
+
+    if not all([db_user, db_password, db_port, db_name, rds_source_id, s3_bucket_name, pganon_environment]):
+        log_json("One or more required environment variables (PGUSER, PGPASSWORD, PGPORT, PGDATABASE, PGANON_RDS_SOURCE_ID, PGANON_S3_BUCKET_NAME, PGANON_ENVIRONMENT) are not set.", level='error')
+        exit(1)
+
     db_timeout = int(os.getenv('PGANON_DB_TIMEOUT', 30))
+    results_file_name = f"results_{rds_source_id}_{pganon_environment}.json"
 
         # Check for the environment variable 'SAVE_DB'
     env_savedb = os.getenv('PGANON_SAVE_DB', 'false').lower() == 'true'
@@ -130,10 +137,6 @@ def main(**kwargs) -> None:
         except Exception as e:
             log_json(f"No AWS region found, Please configure the PGANON_TARGET_AWS_REGION environment variable. Error: {e}", level='error')
             exit(1)
-
-    if not all([db_user, db_password, os.getenv('PGANON_RDS_SOURCE_ID'), db_port, db_name, s3_bucket_name]):
-        log_json("One or more required environment variables (PGUSER, PGPASSWORD, PGPORT, PGDATABASE, PGANON_RDS_SOURCE_ID, PGANON_S3_BUCKET_NAME) are not set.", level='error')
-        exit(1)
 
     try:
         source_host = aws_utils.get_rds_host_by_instance_id(rds_source_id, source_region_name)
@@ -252,8 +255,12 @@ def main(**kwargs) -> None:
                     tmp_rds_instance["snapshot_arn"] = snapshot_info["snapshot_arn"]
                     os.remove(db_save_file)
                     final_log_message = f"Snapshot information: {tmp_rds_instance}"
+                with open(results_file_name, 'w') as results_file:
+                    json.dump(tmp_rds_instance, results_file, indent=4, default=default_serializer)
+                log_json(f"Results written to {results_file_name}.")
                 log_json("pg_anon completed successfully!")
                 log_json(final_log_message)
+
                 if aws_secret_name:
                     aws_utils.save_secret_to_aws(aws_secret_name, tmp_rds_instance, secret_profile)
             else:

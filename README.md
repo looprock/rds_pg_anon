@@ -24,18 +24,16 @@ You should now be able to, either:
 - PGPASSWORD: source database instance password
 - PGPORT: source database instance port
 - PGUSER: source database instance user
+- PGANON_ENVIRONMENT: A unique environment reference you can use to find resources created by pg_anon
 - PGANON_RDS_SOURCE_ID: AWS instance ID of source database instance
 - PGANON_S3_BUCKET_NAME: A bucket used to read and write state files
 
 ### Optional environment variables
 
-- PGANON_CREDS_SECRET: a secret to write credentials information.
+- PGANON_CREDS_SECRET: a secret to write credentials information. (Default: /infra/[PGANON_ENVIRONMENT]/rds/pg-anon/credentials)
 - PGANON_DB_TIMEOUT: set the database connection timeout (Default: 30)
 - PGANON_DB_RETRIES: set the number a times a database reconnection is attempted (Default: 10)
 - PGANON_DB_BACKOFF_TIME: set the backoff start point in seconds, will double every attempt (Default: 1)
-- PGANON_ENVIRONMENT: A unique environment reference you can use to find resources created by pg_anon
-  - required to use --snapshot to create snapshot id: pganon-[value of PGANON_ENVIRONMENT]
-  - required if you use --write-secret and **DO NOT set PGANON_CREDS_SECRET**
 - PGANON_SAVE_DB: same as --savedb, This is primarily for testing and will cache the test database information and allow you run pganon against the same instance repeatedly.
 - PGANON_SECRET_PROFILE: AWS profile to use to write secret. Setting this assumes --write-secret is true
 - PGANON_SOURCE_AWS_REGION - the AWS region is identified via the boto session, but if that fails, or you wish to overwrite this, you can use this variable.
@@ -76,6 +74,14 @@ Options:
   --write-secret                Create a secret in AWS Secrets Manager. If PGANON_CREDS_SECRET is set, that will be used as the secret name, otherwise the secret name will be written to: 'infra/[value of PGANON_ENVIRONMENT]/rds/pg-anon/credentials'
   --help                        Show this message and exit.
 ```
+
+# Outputs
+
+By default, connection and resource information are written to a file: `./results_[PGANON_RDS_SOURCE_ID]_[PGANON_ENVIRONMENT].json`
+
+If you used '--write-secret' or '--secret-profile' (or used related environment variables), the same data will be written to the specified secret as well.
+
+The data is also written out to the logs.
 
 # Extensions
 
