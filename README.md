@@ -15,7 +15,7 @@ While uniqueness is enforceable for basic column-level anonymized values, it's n
 To install then environment and all it's dependencies, install [uv](https://docs.astral.sh/uv/) and run: `uv sync`
 
 You should now be able to, either:
-- source the environment using: `. ./.venv/bin/activate`
+- source the environment using: `. ./.venv/bin/activate` then running `./pg_anon [arguments]`
 - use: `uv run ./pg_anon [arguments]` 
 
 ## Required environment variables
