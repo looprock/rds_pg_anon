@@ -1,0 +1,48 @@
+{
+    "faker": {
+        "options": ["en_US"],
+        "email": {
+            "domain": "secretagent.com"
+        }
+    },
+    "columns": {
+            "phone_number": "faker.phone_number",
+            "phone": "faker.phone_number",
+            "agent_phone": "faker.phone_number",
+            "first_name": "faker.first_name",
+            "last_name": "faker.last_name",
+            "email": "faker.email",
+            "street": "faker.address",
+            "zipcode": "faker.zipcode",
+            "city": "faker.city",
+            "state": "faker.state",
+            "country": "faker.country",
+            "ssn": "faker.ssn",
+            "social_security_number": "faker.ssn",
+            "full_name": "faker.name",
+            "superSuperSecretMail": "faker.email"
+    },
+    "json": {
+        "keys": [
+            {"root['phones']": "custom.phone_dict_list"}
+        ],
+        "lists": [
+            {
+                "root['spies']['phones']": {
+                    "type": "faker.phone_number",
+                    "count": 3
+                }
+            }
+        ],
+        "all_keys": [
+            {"phoneNumber": "faker.phone_number"},
+            {"firstName": "faker.first_name"},
+            {"lastName": "faker.last_name"},
+            {"phones": "custom.phone_dict_list"},
+        ],
+        "ignore_keys": [
+            "SpecialOpsAreas"
+        ]
+    }
+}
+
