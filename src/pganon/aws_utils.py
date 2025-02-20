@@ -230,9 +230,13 @@ class AWSUtils:
         except ClientError as e:
             log_json(f"Failed to create new RDS instance from snapshot: {e}", level='error')
 
-    def save_secret_to_aws(self, secret_name: str, secret_data: dict) -> None:
+    def save_secret_to_aws(self, secret_name: str, secret_data: dict, profile_name: str = None) -> None:
         # Save the database connection information to AWS Secrets Manager
-        client = boto3.client('secretsmanager')
+        if profile_name:
+            session = boto3.Session(profile_name=profile_name)
+            client = session.client('secretsmanager')
+        else:
+            client = boto3.client('secretsmanager')
         try:
             # Check if the secret already exists
             client.create_secret(
@@ -285,6 +289,7 @@ class AWSUtils:
             exit(1)
 
     def delete_instance(self, instance_id: str, snapshot_id: str) -> dict:
+        log_json(f"Deleting RDS instance {instance_id} and creating final snapshot {snapshot_id}.", level='info')
         try:
             rds_client = boto3.client('rds')
             # Create a final snapshot before deletion

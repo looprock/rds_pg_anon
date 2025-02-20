@@ -29,17 +29,21 @@ You should now be able to, either:
 
 ### Optional environment variables
 
-- PGANON_ENVIRONMENT: A unique environment reference you can use to find resources created by pg_anon
-  - required to use --snapshot to create snapshot id: pganon-[value of PGANON_ENVIRONMENT]
-  - required if you use --write-secret and **DO NOT set PGANON_CREDS_SECRET**
-- PGANON_SAVE_DB: same as --savedb, This is primarily for testing and will cache the test database information and allow you run pganon against the same instance repeatedly.
 - PGANON_CREDS_SECRET: a secret to write credentials information.
 - PGANON_DB_TIMEOUT: set the database connection timeout (Default: 30)
 - PGANON_DB_RETRIES: set the number a times a database reconnection is attempted (Default: 10)
 - PGANON_DB_BACKOFF_TIME: set the backoff start point in seconds, will double every attempt (Default: 1)
+- PGANON_ENVIRONMENT: A unique environment reference you can use to find resources created by pg_anon
+  - required to use --snapshot to create snapshot id: pganon-[value of PGANON_ENVIRONMENT]
+  - required if you use --write-secret and **DO NOT set PGANON_CREDS_SECRET**
+- PGANON_SAVE_DB: same as --savedb, This is primarily for testing and will cache the test database information and allow you run pganon against the same instance repeatedly.
+- PGANON_SECRET_PROFILE: AWS profile to use to write secret. Setting this assumes --write-secret is true
 - PGANON_SOURCE_AWS_REGION - the AWS region is identified via the boto session, but if that fails, or you wish to overwrite this, you can use this variable.
 - PGANON_TARGET_AWS_REGION - the AWS region is identified via the boto session, but if that fails, or you wish to overwrite this, you can use this variable.
-- PGANON_RDS_* - You can use the **all uppercase** name of the options [here](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds/client/restore_db_instance_from_db_snapshot.html), prefixed with 'PGANON_RDS_', to overwrite the parameters of the replica DB created by pganon. Depending on the input, you map them like:
+
+#### Optional RDS configuration
+
+You can use the **all uppercase** name of the options [here](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds/client/restore_db_instance_from_db_snapshot.html), prefixed with 'PGANON_RDS_', to overwrite the parameters of the replica DB created by pganon. Depending on the input, you map them like:
   - string values: "value"
   - integer values: 128, 1024, 2048, etc.
   - boolean values: true, false
@@ -65,6 +69,7 @@ Options:
   --overwrite                   Overwrite the output file if it already exists.
   --save                        Save the output file locally after processing.
   --savedb                      Save and re-use the database information.
+  --secret-profile              Use a specific AWS profile for secret management. Setting this assumes --write-secret is true. (also configureable via PGANON_SECRET_PROFILE)
   --snapshot                    Save a snapshot and delete the instance. The snapshot will be created as 'pganon-[value of PGANON_ENVIRONMENT]' and will be overwritten by each run
   --upload                      Upload the existing state file to S3 without processing
   --verbose                     print verbose output

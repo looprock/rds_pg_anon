@@ -36,6 +36,7 @@ aws_utils = AWSUtils()
 @click.option('--overwrite', is_flag=True, help='Overwrite the output file if it already exists.')
 @click.option('--save', is_flag=True, help='Save the output file locally after processing.')
 @click.option('--savedb', is_flag=True, help='Save and re-use the database information.')
+@click.option('--secret-profile', type=str, help='Use a specific AWS profile for secret management. Setting this assumes --write-secret is true.')
 @click.option('--snapshot', is_flag=True, help='Save a snapshot as pganon-[value of PGANON_ENVIRONMENT] and delete the instance. Snapshot will be overwritten by each run.')
 @click.option('--upload', is_flag=True, help='Upload the existing state file to S3 without processing.')
 @click.option('--verbose', is_flag=True, help='print verbose output')
@@ -56,7 +57,7 @@ def main(**kwargs) -> None:
     upload = kwargs.get('upload')
     verbose = kwargs.get('verbose')
     write_secret = kwargs.get('write_secret')
-
+    secret_profile = kwargs.get('secret_profile')
     if create_admin_password:
         if not create_admin_user:
             log_json("create_admin_user is required when create_admin_password is set", level='error')
@@ -74,9 +75,13 @@ def main(**kwargs) -> None:
         # Check for the environment variable 'SAVE_DB'
     env_savedb = os.getenv('PGANON_SAVE_DB', 'false').lower() == 'true'
     savedb = savedb or env_savedb
+    if savedb:
+        log_json("Saving database connection information to local file.", level='info')
 
     env_local_state = os.getenv('PGANON_LOCAL_STATE', 'false').lower() == 'true'
     local_state = local_state or env_local_state
+    if local_state:
+        log_json("Using local state file instead of remote state file.", level='info')
 
     # check if snapshot is set and PGANON_ENVIRONMENT is set for snapshot naming
     if snapshot and not os.getenv('PGANON_ENVIRONMENT'):
@@ -85,14 +90,24 @@ def main(**kwargs) -> None:
 
     snapshot_id = f"pganon-{os.getenv('PGANON_ENVIRONMENT')}"
 
+    # if we are setting a secret profile, assume we need to write a secret
+    env_secret_profile = os.getenv('PGANON_SECRET_PROFILE')
+    secret_profile = secret_profile or env_secret_profile
+    secret_profile_message = f"Using the default boto3 AWS credentials to write secret:"
+    if secret_profile:
+        secret_profile_message = f"Using AWS profile {secret_profile} to write secret:"
+        write_secret = True
+
     if write_secret:
         if not os.getenv('PGANON_CREDS_SECRET') and not os.getenv('PGANON_ENVIRONMENT'):
             log_json("PGANON_CREDS_SECRET or PGANON_ENVIRONMENT must be set to create a snapshot", level='error')
             exit(1)
         aws_secret_name = f"/infra/{os.getenv('PGANON_ENVIRONMENT')}/rds/pg-anon/credentials"
 
-    if os.getenv('PGANON_CREDS_SECRET'):
-        aws_secret_name = os.getenv('PGANON_CREDS_SECRET')
+        if os.getenv('PGANON_CREDS_SECRET'):
+            aws_secret_name = os.getenv('PGANON_CREDS_SECRET')
+
+        log_json(f"{secret_profile_message}: {aws_secret_name}", level='info')
 
     # don't delete the local state file local-state is set
     if local_state:
@@ -237,10 +252,10 @@ def main(**kwargs) -> None:
                     tmp_rds_instance["snapshot_arn"] = snapshot_info["snapshot_arn"]
                     os.remove(db_save_file)
                     final_log_message = f"Snapshot information: {tmp_rds_instance}"
-                if aws_secret_name:
-                    aws_utils.save_secret_to_aws(aws_secret_name, tmp_rds_instance)
                 log_json("pg_anon completed successfully!")
                 log_json(final_log_message)
+                if aws_secret_name:
+                    aws_utils.save_secret_to_aws(aws_secret_name, tmp_rds_instance, secret_profile)
             else:
                 log_json("Anonymization failed.", level='error')
                 exit(1)

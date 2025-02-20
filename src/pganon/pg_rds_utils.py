@@ -157,7 +157,7 @@ class PgRdsUtils:
     def execute_patch_sql(self, source_host: str, stage: str) -> None:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         patch_path = os.path.join(current_dir, '..', '..', 'extend', 'patch', f'{source_host}')
-        log_json(f"checking for patches under patch_path: {patch_path}")
+        log_json(f"checking for {stage} stage patches under patch_path: {patch_path}")
         if not os.path.exists(patch_path):
             log_json(f"Patch path {patch_path} does not exist")
             return
