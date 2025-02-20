@@ -1,6 +1,6 @@
 # pg_anon
 
-Create an anonymized snapshot of your postgresql database.
+Replicate and anonymize a postgresql RDS instance to another instance or a snapshot.
 
 # Limitations
 

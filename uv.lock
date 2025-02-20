@@ -51,29 +51,6 @@ wheels = [
 ]
 
 [[package]]
-name = "db-replicator"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "boto3" },
-    { name = "click" },
-    { name = "deepdiff" },
-    { name = "faker" },
-    { name = "psycopg2-binary" },
-    { name = "sqlalchemy" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "boto3", specifier = ">=1.36.14" },
-    { name = "click", specifier = ">=8.1.8" },
-    { name = "deepdiff", specifier = ">=8.2.0" },
-    { name = "faker" },
-    { name = "psycopg2-binary", specifier = ">=2.9.10" },
-    { name = "sqlalchemy", specifier = ">=2.0.37" },
-]
-
-[[package]]
 name = "deepdiff"
 version = "8.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -147,6 +124,29 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e7/0e/ef328b512c2595831304e51f25e9287697b7bf13be0527ca9592a2659c16/orderly_set-5.3.0.tar.gz", hash = "sha256:80b3d8fdd3d39004d9aad389eaa0eab02c71f0a0511ba3a6d54a935a6c6a0acc", size = 20026 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/df/fe/8009ebb64a19cf4bdf51b16d3074375010735d8c30408efada6ce02bf37e/orderly_set-5.3.0-py3-none-any.whl", hash = "sha256:c2c0bfe604f5d3d9b24e8262a06feb612594f37aa3845650548befd7772945d1", size = 12179 },
+]
+
+[[package]]
+name = "pganon"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "boto3" },
+    { name = "click" },
+    { name = "deepdiff" },
+    { name = "faker" },
+    { name = "psycopg2-binary" },
+    { name = "sqlalchemy" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "boto3", specifier = ">=1.36.14" },
+    { name = "click", specifier = ">=8.1.8" },
+    { name = "deepdiff", specifier = ">=8.2.0" },
+    { name = "faker", specifier = ">=35.2.0" },
+    { name = "psycopg2-binary", specifier = ">=2.9.10" },
+    { name = "sqlalchemy", specifier = ">=2.0.37" },
 ]
 
 [[package]]

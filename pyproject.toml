@@ -1,7 +1,7 @@
 [project]
-name = "db-replicator"
+name = "pganon"
 version = "0.1.0"
-description = "Add your description here"
+description = "Replicate and anonymize a postgresql RDS instance to another instance or a snapshot"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
