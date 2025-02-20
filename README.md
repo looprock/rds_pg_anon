@@ -253,7 +253,7 @@ Any faker method can be use by prefixing the type with 'faker.'
 ```
 "anonymize": {
     "type": "faker.last_name",
-    "persist_values": "smith"
+    "persist_values": ["smith"]
 }
 ```
 
