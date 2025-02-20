@@ -74,7 +74,7 @@ Options:
 
 # Extensions
 
-Extensions aren're required but are provided as an attempt to standardize some common features and customizations.
+Extensions are provided as an attempt to standardize some common features and customizations.
 
 ## patching
 
