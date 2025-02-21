@@ -288,6 +288,8 @@ def main(**kwargs) -> None:
 
     # If check is set, compare the inspectstate with the current database state
     else:
+        # get the stored state from the file or s3
+        stored_state = state_utils.read_existing_state(output_file_base, s3_bucket_name, output_file, local_state)
         # create a replica of the instance
         if savedb:
             db_save_file = f"{pganon_data_dir}/db_save.json"
@@ -317,7 +319,7 @@ def main(**kwargs) -> None:
         state_utils = StateUtils(target_engine)
 
         if state_utils.match_state(
-            output_file, s3_bucket_name, target_engine, initialize, save, local_state
+            stored_state, output_file, target_engine, initialize, save
         ):
             log_json("Database state matches the existing file.", level="info")
             target_engine.execute_patch_sql(source_host, stage="pre")
