@@ -364,6 +364,7 @@ If this doesn't fit the bill for you, you may want to check one of those out.
 
 # TODO
 - create a pipeline devs can trigger and that can be scheduled
+- fix boto logging to json
 - monitor for failed pipeline runs
 - monitor for long lived dbinspect rds instances on all accounts
 - do a restore -> unencrypted snapshot -> restore cycle on db to remove encryption

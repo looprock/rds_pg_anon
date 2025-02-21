@@ -252,10 +252,10 @@ def main(**kwargs) -> None:
     elif download:
         save_remote_state = True
         if aws_utils.download_from_s3(s3_bucket_name, output_file_base, output_file):
-            log_json(f"File {output_file} downloaded from S3.")
+            log_json(f"File {output_file_base} downloaded from S3.")
             exit(0)
         else:
-            log_json(f"Failed to download {output_file} from S3.", level="error")
+            log_json(f"Failed to download {output_file_base} from S3.", level="error")
             exit(1)
 
     # If upload is set, upload the existing file to S3 and exit

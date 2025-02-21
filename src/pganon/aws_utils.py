@@ -96,8 +96,8 @@ class AWSUtils:
             output_file = file_name
             if destination_file:
                 output_file = destination_file
+            log_json(f"Downloading {file_name} from S3 bucket {bucket_name} to {output_file}")
             s3.download_file(bucket_name, file_name, output_file)
-            log_json(f"Downloaded {file_name} from S3 bucket {bucket_name} to {output_file}")
             return True
         except Exception as e:
             log_json(f"Failed to download {file_name} from S3: {e}. Do you need to use --initialize?", level='error')
