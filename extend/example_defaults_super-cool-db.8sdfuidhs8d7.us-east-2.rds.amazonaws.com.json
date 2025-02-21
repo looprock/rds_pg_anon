@@ -35,10 +35,21 @@
             }
         ],
         "all_keys": [
+            {"phone_number": "faker.phone_number"},
+            {"first_name": "faker.first_name"},
+            {"last_name": "faker.last_name"},
+            {"email": "faker.email"},
+            {"street": "fake.address()"},
+            {"zipcode": "fake.zipcode()"},
+            {"city": "fake.city()"},
+            {"state": "fake.state()"},
+            {"country": "fake.country()"},
+            {"ssn": "fake.ssn()"},
+            {"social_security_number": "fake.ssn()"},
             {"phoneNumber": "faker.phone_number"},
             {"firstName": "faker.first_name"},
             {"lastName": "faker.last_name"},
-            {"phones": "custom.phone_dict_list"},
+            {"phones": "custom.phone_dict_list"}
         ],
         "ignore_keys": [
             "SpecialOpsAreas"

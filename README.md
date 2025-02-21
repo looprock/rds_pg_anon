@@ -139,7 +139,19 @@ You can create per-instance defaults by naming them: defaults_[source_host].json
             "social_security_number": "fake.ssn()"
     },
     "json": {
-        "defaults": true
+        "all_keys": [
+            {"phone_number": "faker.phone_number"},
+            {"first_name": "faker.first_name"},
+            {"last_name": "faker.last_name"},
+            {"email": "faker.email"},
+            {"street": "fake.address()"},
+            {"zipcode": "fake.zipcode()"},
+            {"city": "fake.city()"},
+            {"state": "fake.state()"},
+            {"country": "fake.country()"},
+            {"ssn": "fake.ssn()"},
+            {"social_security_number": "fake.ssn()"}
+        ]
     }
 }
 ```
@@ -306,19 +318,27 @@ JSON blocks also support these global options:
            ],
            "lists": [
                {
-                   "root['brokerage']['phones']": {
+                   "root['agent']['phones']": {
                        "type": "faker.phone_number",
                        "count": 3
                    }
                }
            ],
            "all_keys": [
-               {"phoneNumber": "faker.phone_number"},
-               {"firstName": "faker.first_name"},
-               {"lastName": "faker.last_name"}
+                {"phone_number": "faker.phone_number"},
+                {"first_name": "faker.first_name"},
+                {"last_name": "faker.last_name"},
+                {"email": "faker.email"},
+                {"street": "fake.address()"},
+                {"zipcode": "fake.zipcode()"},
+                {"city": "fake.city()"},
+                {"state": "fake.state()"},
+                {"country": "fake.country()"},
+                {"ssn": "fake.ssn()"},
+                {"social_security_number": "fake.ssn()"}
            ],
            "ignore_keys": [
-               "coveredAreas"
+               "covertAreas"
            ],
            "persist_values": [
                "admin@foo.com",
