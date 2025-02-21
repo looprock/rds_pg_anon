@@ -26,6 +26,7 @@ docker run \
 -e PGANON_SAVE_DB=${PGANON_SAVE_DB} \
 -e PGANON_SECRET_PROFILE=${PGANON_SECRET_PROFILE} \
 -e PGANON_DATA_DIR="/app/data" \
+-e PGANON_EXTEND_DIR="/app/extend" \
 -e AWS_PROFILE=${AWS_PROFILE} \
 ${CONTAINER_IMAGE} \
 --dry-run
