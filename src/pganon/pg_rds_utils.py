@@ -73,8 +73,6 @@ class PgRdsUtils:
 
         system_schemas = ["information_schema", "pg_catalog", "pg_toast"]
         # Reflect each schema
-        true_values = 1
-        foreign_key_values = 1
         for schema in schemas:
             log_json(f"processing schema {schema}")
             if schema not in system_schemas:
@@ -106,15 +104,11 @@ class PgRdsUtils:
                         isinstance(constraint, UniqueConstraint) and column.name in constraint.columns
                         for constraint in metadata.tables[table].constraints
                     )
-                    if column_is_unique:
-                        true_values += 1
                     # Check if the column is a foreign key
                     column_is_foreign_key = any(
                         isinstance(constraint, ForeignKeyConstraint) and column.name in [fk.name for fk in constraint.columns]
                         for constraint in metadata.tables[table].constraints
                     )
-                    if column_is_foreign_key:
-                        foreign_key_values += 1
                     if initialize:
                         column_data["anonymize"] = self.get_default_faker_value(str(column.name), str(column.type.__class__.__name__))
                         if column_is_unique:
@@ -152,8 +146,6 @@ class PgRdsUtils:
             #         relationships[cls.__name__] = all_relationships
             # if schema not in system_schemas and relationships:
             #     data["schemas"][schema]["relationships"] = relationships
-        print(f"true_values: {true_values}")
-        print(f"foreign_key_values: {foreign_key_values}")
         return data
 
     def execute_patch_sql(self, source_host: str, stage: str) -> None:
