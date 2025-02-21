@@ -45,7 +45,6 @@ COPY . .
 RUN uv sync --frozen
 
 RUN apt update && \
-    ls -ald /app/extend/* && \
     apt install -y postgresql-client
 
 ENTRYPOINT ["/app/pg_anon"]

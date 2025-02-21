@@ -14,5 +14,5 @@ podman run \
 -e PGANON_SAVE_DB=${PGANON_SAVE_DB} \
 -e PGANON_SECRET_PROFILE=${PGANON_SECRET_PROFILE} \
 -e AWS_PROFILE=${AWS_PROFILE} \
-localhost/rds_pg_anon:latest \
---dry-run
+ghcr.io/looprock/rds_pg_anon:test1 \
+--help
