@@ -37,6 +37,7 @@ You should now be able to, either:
 ### Optional environment variables
 
 - PGANON_CREDS_SECRET: a secret to write credentials information. (Default: /infra/[PGANON_ENVIRONMENT]/rds/pg-anon/credentials)
+- PGANON_DATA_DIR: data directory to write output files to (Default: "./data")
 - PGANON_DB_TIMEOUT: set the database connection timeout (Default: 30)
 - PGANON_DB_RETRIES: set the number a times a database reconnection is attempted (Default: 10)
 - PGANON_DB_BACKOFF_TIME: set the backoff start point in seconds, will double every attempt (Default: 1)

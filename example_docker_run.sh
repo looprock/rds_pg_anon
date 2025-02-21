@@ -4,9 +4,13 @@ if [ ! -d "${HOME}/pg_anon/data" ]; then
     mkdir -p "${HOME}/pg_anon/data"
 fi
 
-podman run \
+if [ ! -d "${HOME}/pg_anon/extend" ]; then
+    mkdir -p "${HOME}/pg_anon/extend"
+fi
+
+docker run \
 -v ${HOME}/pg_anon/data:/app/data \
--v `pwd`/pg_anon/extend:/app/extend \
+-v ${HOME}/pg_anon/extend:/app/extend \
 -v ${HOME}/.aws:/root/.aws \
 -e PGDATABASE=${PGDATABASE} \
 -e PGPORT=${PGPORT} \
