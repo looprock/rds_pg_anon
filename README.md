@@ -361,3 +361,12 @@ This project was informed and inspired by:
 - https://github.com/TantorLabs/pg_anon
 
 If this doesn't fit the bill for you, you may want to check one of those out.
+
+# TODO
+- create a pipeline devs can trigger and that can be scheduled
+- monitor for failed pipeline runs
+- monitor for long lived dbinspect rds instances on all accounts
+- do a restore -> unencrypted snapshot -> restore cycle on db to remove encryption
+- support all env vars as config file as well: if config/config_[RDS_SOURCE_ID]_[PGANON_ENVIRONMENT].??
+- create a docker image
+- maybe try deploying via: https://docs.dbos.dev/

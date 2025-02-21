@@ -23,6 +23,7 @@ docker run \
 -e PGPASSWORD=${PGPASSWORD} \
 -e PGANON_SAVE_DB=${PGANON_SAVE_DB} \
 -e PGANON_SECRET_PROFILE=${PGANON_SECRET_PROFILE} \
+-e PGANON_DATA_DIR="/app/data" \
 -e AWS_PROFILE=${AWS_PROFILE} \
-ghcr.io/looprock/rds_pg_anon:test1 \
+ghcr.io/looprock/rds_pg_anon:dev-latest \
 --dry-run
