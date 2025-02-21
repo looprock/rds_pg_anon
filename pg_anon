@@ -11,94 +11,148 @@ import sys
 from datetime import datetime
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-src_path = os.path.join(current_dir, 'src')
-extend_path = os.path.join(current_dir, 'extend')
+src_path = os.path.join(current_dir, "src")
+extend_path = os.path.join(current_dir, "extend")
 sys.path.append(src_path)
 sys.path.append(extend_path)
 
-from src.pganon.anonymizer import Anonymizer # noqa: E402
-from src.pganon.loglib import log_json # noqa: E402
-from src.pganon.aws_utils import AWSUtils   # noqa: E402
+from src.pganon.anonymizer import Anonymizer  # noqa: E402
+from src.pganon.loglib import log_json  # noqa: E402
+from src.pganon.aws_utils import AWSUtils  # noqa: E402
 from src.pganon.pg_rds_utils import PgRdsUtils  # noqa: E402
 from src.pganon.state_utils import StateUtils  # noqa: E402
 from src.pganon.serializer import default_serializer  # noqa: E402
 
 aws_utils = AWSUtils()
 
-@click.command()
-@click.option('--create-admin', is_flag=True, help='Create a new admin user.')
-@click.option('--create-admin-user', type=str, help='Create a specific new admin user.')
-@click.option('--create-admin-password', type=str, help='Use a specific new admin user password: requires --create-admin-user.')
-@click.option('--download', is_flag=True, help='Download the file from S3 to the expected output name without processing.')
-@click.option('--dry-run', is_flag=True, help='Don\'t actually modify the database instance, just output the state changes.')
-@click.option('--initialize', is_flag=True, help='Initialize the file if it does not exist.')
-@click.option('--local-state', is_flag=True, help='Use the local state file instead of the remote state file.')
-@click.option('--overwrite', is_flag=True, help='Overwrite the output file if it already exists.')
-@click.option('--save', is_flag=True, help='Save the output file locally after processing.')
-@click.option('--savedb', is_flag=True, help='Save and re-use the database information.')
-@click.option('--secret-profile', type=str, help='Use a specific AWS profile for secret management. Setting this assumes --write-secret is true.')
-@click.option('--snapshot', is_flag=True, help='Save a snapshot as pganon-[value of PGANON_ENVIRONMENT] and delete the instance. Snapshot will be overwritten by each run.')
-@click.option('--upload', is_flag=True, help='Upload the existing state file to S3 without processing.')
-@click.option('--verbose', is_flag=True, help='print verbose output')
-@click.option('--write-secret', type=str, help='Create a secret in AWS Secrets Manager.')
 
+@click.command()
+@click.option("--create-admin", is_flag=True, help="Create a new admin user.")
+@click.option("--create-admin-user", type=str, help="Create a specific new admin user.")
+@click.option(
+    "--create-admin-password",
+    type=str,
+    help="Use a specific new admin user password: requires --create-admin-user.",
+)
+@click.option(
+    "--download",
+    is_flag=True,
+    help="Download the file from S3 to the expected output name without processing.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Don't actually modify the database instance, just output the state changes.",
+)
+@click.option(
+    "--initialize", is_flag=True, help="Initialize the file if it does not exist."
+)
+@click.option(
+    "--local-state",
+    is_flag=True,
+    help="Use the local state file instead of the remote state file.",
+)
+@click.option(
+    "--overwrite", is_flag=True, help="Overwrite the output file if it already exists."
+)
+@click.option(
+    "--save", is_flag=True, help="Save the output file locally after processing."
+)
+@click.option(
+    "--savedb", is_flag=True, help="Save and re-use the database information."
+)
+@click.option(
+    "--secret-profile",
+    type=str,
+    help="Use a specific AWS profile for secret management. Setting this assumes --write-secret is true.",
+)
+@click.option(
+    "--snapshot",
+    is_flag=True,
+    help="Save a snapshot as pganon-[value of PGANON_ENVIRONMENT] and delete the instance. Snapshot will be overwritten by each run.",
+)
+@click.option(
+    "--upload",
+    is_flag=True,
+    help="Upload the existing state file to S3 without processing.",
+)
+@click.option("--verbose", is_flag=True, help="print verbose output")
+@click.option(
+    "--write-secret", type=str, help="Create a secret in AWS Secrets Manager."
+)
 def main(**kwargs) -> None:
-    create_admin = kwargs.get('create_admin')
-    create_admin_user = kwargs.get('create_admin_user')
-    create_admin_password = kwargs.get('create_admin_password')
-    download = kwargs.get('download')
-    dry_run = kwargs.get('dry_run')
-    initialize = kwargs.get('initialize')
-    local_state = kwargs.get('local_state')
-    overwrite = kwargs.get('overwrite')
-    save = kwargs.get('save')
-    savedb = kwargs.get('savedb')
-    snapshot = kwargs.get('snapshot')
-    upload = kwargs.get('upload')
-    verbose = kwargs.get('verbose')
-    write_secret = kwargs.get('write_secret')
-    secret_profile = kwargs.get('secret_profile')
+    create_admin = kwargs.get("create_admin")
+    create_admin_user = kwargs.get("create_admin_user")
+    create_admin_password = kwargs.get("create_admin_password")
+    download = kwargs.get("download")
+    dry_run = kwargs.get("dry_run")
+    initialize = kwargs.get("initialize")
+    local_state = kwargs.get("local_state")
+    overwrite = kwargs.get("overwrite")
+    save = kwargs.get("save")
+    savedb = kwargs.get("savedb")
+    snapshot = kwargs.get("snapshot")
+    upload = kwargs.get("upload")
+    verbose = kwargs.get("verbose")
+    write_secret = kwargs.get("write_secret")
+    secret_profile = kwargs.get("secret_profile")
     if create_admin_password:
         if not create_admin_user:
-            log_json("create_admin_user is required when create_admin_password is set", level='error')
+            log_json(
+                "create_admin_user is required when create_admin_password is set",
+                level="error",
+            )
             exit(1)
 
     # Retrieve environment variables using standard psql names
-    db_user = os.getenv('PGUSER')
-    db_password = os.getenv('PGPASSWORD')
-    db_port = os.getenv('PGPORT')
-    db_name = os.getenv('PGDATABASE')
-    rds_source_id = os.getenv('PGANON_RDS_SOURCE_ID')
-    s3_bucket_name = os.getenv('PGANON_S3_BUCKET_NAME')
-    pganon_environment = os.getenv('PGANON_ENVIRONMENT')
+    db_user = os.getenv("PGUSER")
+    db_password = os.getenv("PGPASSWORD")
+    db_port = os.getenv("PGPORT")
+    db_name = os.getenv("PGDATABASE")
+    rds_source_id = os.getenv("PGANON_RDS_SOURCE_ID")
+    s3_bucket_name = os.getenv("PGANON_S3_BUCKET_NAME")
+    pganon_environment = os.getenv("PGANON_ENVIRONMENT")
 
-    if not all([db_user, db_password, db_port, db_name, rds_source_id, s3_bucket_name, pganon_environment]):
-        log_json("One or more required environment variables (PGUSER, PGPASSWORD, PGPORT, PGDATABASE, PGANON_RDS_SOURCE_ID, PGANON_S3_BUCKET_NAME, PGANON_ENVIRONMENT) are not set.", level='error')
+    if not all(
+        [
+            db_user,
+            db_password,
+            db_port,
+            db_name,
+            rds_source_id,
+            s3_bucket_name,
+            pganon_environment,
+        ]
+    ):
+        log_json(
+            "One or more required environment variables (PGUSER, PGPASSWORD, PGPORT, PGDATABASE, PGANON_RDS_SOURCE_ID, PGANON_S3_BUCKET_NAME, PGANON_ENVIRONMENT) are not set.",
+            level="error",
+        )
         exit(1)
 
-    db_timeout = int(os.getenv('PGANON_DB_TIMEOUT', 30))
-    results_file_name = f"results_{rds_source_id}_{pganon_environment}.json"
+    db_timeout = int(os.getenv("PGANON_DB_TIMEOUT", 30))
+    results_file_name = f"data/results_{rds_source_id}_{pganon_environment}.json"
 
-        # Check for the environment variable 'SAVE_DB'
-    env_savedb = os.getenv('PGANON_SAVE_DB', 'false').lower() == 'true'
+    # Check for the environment variable 'SAVE_DB'
+    env_savedb = os.getenv("PGANON_SAVE_DB", "false").lower() == "true"
     savedb = savedb or env_savedb
     if savedb:
-        log_json("Saving database connection information to local file.", level='info')
+        log_json("Saving database connection information to local file.", level="info")
 
-    env_local_state = os.getenv('PGANON_LOCAL_STATE', 'false').lower() == 'true'
+    env_local_state = os.getenv("PGANON_LOCAL_STATE", "false").lower() == "true"
     local_state = local_state or env_local_state
     if local_state:
-        log_json("Using local state file instead of remote state file.", level='info')
+        log_json("Using local state file instead of remote state file.", level="info")
 
     # check if snapshot is set and PGANON_ENVIRONMENT is set for snapshot naming
-    if snapshot and not os.getenv('PGANON_ENVIRONMENT'):
-            log_json("PGANON_ENVIRONMENT must be set to create a snapshot", level='error')
-            exit(1)
+    if snapshot and not os.getenv("PGANON_ENVIRONMENT"):
+        log_json("PGANON_ENVIRONMENT must be set to create a snapshot", level="error")
+        exit(1)
 
     snapshot_id = f"pganon-{os.getenv('PGANON_ENVIRONMENT')}"
 
     # if we are setting a secret profile, assume we need to write a secret
-    env_secret_profile = os.getenv('PGANON_SECRET_PROFILE')
+    env_secret_profile = os.getenv("PGANON_SECRET_PROFILE")
     secret_profile = secret_profile or env_secret_profile
     secret_profile_message = f"Using the default boto3 AWS credentials to write secret:"
     if secret_profile:
@@ -106,15 +160,20 @@ def main(**kwargs) -> None:
         write_secret = True
 
     if write_secret:
-        if not os.getenv('PGANON_CREDS_SECRET') and not os.getenv('PGANON_ENVIRONMENT'):
-            log_json("PGANON_CREDS_SECRET or PGANON_ENVIRONMENT must be set to create a snapshot", level='error')
+        if not os.getenv("PGANON_CREDS_SECRET") and not os.getenv("PGANON_ENVIRONMENT"):
+            log_json(
+                "PGANON_CREDS_SECRET or PGANON_ENVIRONMENT must be set to create a snapshot",
+                level="error",
+            )
             exit(1)
-        aws_secret_name = f"/infra/{os.getenv('PGANON_ENVIRONMENT')}/rds/pg-anon/credentials"
+        aws_secret_name = (
+            f"/infra/{os.getenv('PGANON_ENVIRONMENT')}/rds/pg-anon/credentials"
+        )
 
-        if os.getenv('PGANON_CREDS_SECRET'):
-            aws_secret_name = os.getenv('PGANON_CREDS_SECRET')
+        if os.getenv("PGANON_CREDS_SECRET"):
+            aws_secret_name = os.getenv("PGANON_CREDS_SECRET")
 
-        log_json(f"{secret_profile_message}: {aws_secret_name}", level='info')
+        log_json(f"{secret_profile_message}: {aws_secret_name}", level="info")
 
     # don't delete the local state file local-state is set
     if local_state:
@@ -122,26 +181,34 @@ def main(**kwargs) -> None:
 
     # get the source and target regions
     session = boto3.Session()
-    source_region_name = os.getenv('PGANON_SOURCE_AWS_REGION', None)
+    source_region_name = os.getenv("PGANON_SOURCE_AWS_REGION", None)
     if not source_region_name:
         try:
             source_region_name = session.region_name
         except Exception as e:
-            log_json(f"No AWS region found, Please configure the PGANON_SOURCE_AWS_REGION environment variable. Error: {e}", level='error')
+            log_json(
+                f"No AWS region found, Please configure the PGANON_SOURCE_AWS_REGION environment variable. Error: {e}",
+                level="error",
+            )
             exit(1)
 
-    target_region_name = os.getenv('PGANON_TARGET_AWS_REGION', None)
+    target_region_name = os.getenv("PGANON_TARGET_AWS_REGION", None)
     if not target_region_name:
         try:
             target_region_name = session.region_name
         except Exception as e:
-            log_json(f"No AWS region found, Please configure the PGANON_TARGET_AWS_REGION environment variable. Error: {e}", level='error')
+            log_json(
+                f"No AWS region found, Please configure the PGANON_TARGET_AWS_REGION environment variable. Error: {e}",
+                level="error",
+            )
             exit(1)
 
     try:
-        source_host = aws_utils.get_rds_host_by_instance_id(rds_source_id, source_region_name)
+        source_host = aws_utils.get_rds_host_by_instance_id(
+            rds_source_id, source_region_name
+        )
     except Exception as e:
-        log_json(f"Failed to get the host of the source instance: {e}", level='error')
+        log_json(f"Failed to get the host of the source instance: {e}", level="error")
         exit(1)
     # get the host of the replica
     log_json(f"processing host: {source_host}")
@@ -151,25 +218,31 @@ def main(**kwargs) -> None:
     defaults = state_utils.read_defaults(source_host=source_host)
 
     source_engine_init = create_engine(
-        f'postgresql://{db_user}:{db_password}@{source_host}:{db_port}/{db_name}',
-        connect_args={"connect_timeout": db_timeout}
+        f"postgresql://{db_user}:{db_password}@{source_host}:{db_port}/{db_name}",
+        connect_args={"connect_timeout": db_timeout},
     )
     source_engine = PgRdsUtils(source_engine_init, source_host, defaults)
 
     # Set the output file name to match the original source host
-    output_file = f"inspectstate_{source_host}.json"
+    output_file_base = f"inspectstate_{source_host}.json"
+    output_file = f"data/{output_file_base}"
 
-    # save remote state to local 
+    # save remote state to local
     save_remote_state = False
 
-    if os.path.exists(output_file) and not (overwrite or download or upload or local_state):
-        log_json(f"Output file {output_file} already exists. Use --overwrite to overwrite it.", level='error')
+    if os.path.exists(output_file) and not (
+        overwrite or download or upload or local_state
+    ):
+        log_json(
+            f"Output file {output_file} already exists. Use --overwrite to overwrite it.",
+            level="error",
+        )
         exit(1)
 
     # initialize the file if it does not exist
     elif initialize:
         data = source_engine.inspect_db(initialize)
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             json.dump(data, f, indent=4, default=default_serializer)
         log_json(f"Initialized {output_file}.")
         save_remote_state = True
@@ -181,72 +254,105 @@ def main(**kwargs) -> None:
             log_json(f"File {output_file} downloaded from S3.")
             exit(0)
         else:
-            log_json(f"Failed to download {output_file} from S3.", level='error')
+            log_json(f"Failed to download {output_file} from S3.", level="error")
             exit(1)
 
     # If upload is set, upload the existing file to S3 and exit
     elif upload:
-        if aws_utils.download_from_s3(s3_bucket_name, output_file, f"test_{output_file}") and not overwrite:
-            log_json(f"{output_file} already exists, use --overwrite to overwrite it.", level='error')
-            os.remove(f"test_{output_file}")
+        if (
+            aws_utils.download_from_s3(
+                s3_bucket_name, output_file, f"data/test_{output_file_base}"
+            )
+            and not overwrite
+        ):
+            log_json(
+                f"{output_file} already exists, use --overwrite to overwrite it.",
+                level="error",
+            )
+            os.remove(f"data/test_{output_file_base}")
             exit(1)
         if os.path.exists(output_file):
             aws_utils.upload_to_s3(s3_bucket_name, output_file)
-            log_json(f"Existing file {output_file} uploaded to S3.", level='info')
+            log_json(f"Existing file {output_file} uploaded to S3.", level="info")
             state_utils.save_or_remove(output_file, save_remote_state)
             exit(0)
         else:
-            log_json(f"Output file {output_file} does not exist locally. Cannot upload to S3.", level='error')
+            log_json(
+                f"Output file {output_file} does not exist locally. Cannot upload to S3.",
+                level="error",
+            )
             exit(1)
 
     # If check is set, compare the inspectstate with the current database state
     else:
         # create a replica of the instance
         if savedb:
-            db_save_file = "db_save.json"
+            db_save_file = "data/db_save.json"
             if os.path.exists(db_save_file):
-                log_json(f"Using cached database connection information from {db_save_file}.")
+                log_json(
+                    f"Using cached database connection information from {db_save_file}."
+                )
                 tmp_rds_instance = json.load(open(db_save_file))
             else:
                 log_json(f"Saving database connection information to {db_save_file}.")
-                tmp_rds_instance = aws_utils.create_instance_from_latest_snapshot(rds_source_id, target_region_name, db_user, db_password)
-            with open(db_save_file, 'w') as f:
+                tmp_rds_instance = aws_utils.create_instance_from_latest_snapshot(
+                    rds_source_id, target_region_name, db_user, db_password
+                )
+            with open(db_save_file, "w") as f:
                 json.dump(tmp_rds_instance, f, indent=4, default=default_serializer)
         else:
-            tmp_rds_instance = aws_utils.create_instance_from_latest_snapshot(rds_source_id, target_region_name, db_user, db_password)
-        log_json(f"Creating target engine with endpoint: {tmp_rds_instance['endpoint']}")
-        target_engine_init = create_engine(f'postgresql://{db_user}:{db_password}@{tmp_rds_instance["endpoint"]}:{db_port}/{db_name}')
+            tmp_rds_instance = aws_utils.create_instance_from_latest_snapshot(
+                rds_source_id, target_region_name, db_user, db_password
+            )
+        log_json(
+            f"Creating target engine with endpoint: {tmp_rds_instance['endpoint']}"
+        )
+        target_engine_init = create_engine(
+            f'postgresql://{db_user}:{db_password}@{tmp_rds_instance["endpoint"]}:{db_port}/{db_name}'
+        )
         target_engine = PgRdsUtils(target_engine_init, source_host, defaults)
         state_utils = StateUtils(target_engine)
 
-        if state_utils.match_state(output_file, s3_bucket_name, target_engine, initialize, save, local_state):
-            log_json("Database state matches the existing file.", level='info')
+        if state_utils.match_state(
+            output_file, s3_bucket_name, target_engine, initialize, save, local_state
+        ):
+            log_json("Database state matches the existing file.", level="info")
             target_engine.execute_patch_sql(source_host, stage="pre")
-            anonymizer = Anonymizer(target_engine_init, source_host, defaults, dry_run, verbose)
+            anonymizer = Anonymizer(
+                target_engine_init, source_host, defaults, dry_run, verbose
+            )
             target_state_data = state_utils.state_to_dict(output_file)
             result = anonymizer.anonymize_data(target_state_data)
             new_db_owner = {}
             if result:
                 tmp_rds_instance["date"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                log_json("Anonymization completed successfully.", level='info')
+                log_json("Anonymization completed successfully.", level="info")
                 target_engine.execute_patch_sql(source_host, stage="post")
                 if create_admin:
                     new_db_owner = target_engine.create_new_db_owner()
-                    log_json(f"Created new db owner: {new_db_owner}", level='info')
+                    log_json(f"Created new db owner: {new_db_owner}", level="info")
                 elif create_admin_user:
                     if create_admin_password:
-                        new_db_owner = target_engine.create_new_db_owner(create_admin_user, create_admin_password)
+                        new_db_owner = target_engine.create_new_db_owner(
+                            create_admin_user, create_admin_password
+                        )
                     else:
-                        new_db_owner = target_engine.create_new_db_owner(create_admin_user)
-                    log_json(f"Created new db owner: {new_db_owner}", level='info')
+                        new_db_owner = target_engine.create_new_db_owner(
+                            create_admin_user
+                        )
+                    log_json(f"Created new db owner: {new_db_owner}", level="info")
                 if new_db_owner:
                     tmp_rds_instance["username"] = new_db_owner["db_user"]
                     tmp_rds_instance["password"] = new_db_owner["db_passwd"]
                 final_log_message = f"Instance information: {tmp_rds_instance}"
                 if snapshot:
                     aws_utils.delete_snapshot_if_exists(snapshot_id)
-                    snapshot_info = aws_utils.delete_instance(tmp_rds_instance["id"], snapshot_id)
-                    log_json(f"Snapshot {snapshot_id} created and instance {tmp_rds_instance['id']} deleted.")
+                    snapshot_info = aws_utils.delete_instance(
+                        tmp_rds_instance["id"], snapshot_id
+                    )
+                    log_json(
+                        f"Snapshot {snapshot_id} created and instance {tmp_rds_instance['id']} deleted."
+                    )
                     del tmp_rds_instance["port"]
                     del tmp_rds_instance["endpoint"]
                     tmp_rds_instance["source_instance_id"] = tmp_rds_instance["id"]
@@ -255,21 +361,32 @@ def main(**kwargs) -> None:
                     tmp_rds_instance["snapshot_arn"] = snapshot_info["snapshot_arn"]
                     os.remove(db_save_file)
                     final_log_message = f"Snapshot information: {tmp_rds_instance}"
-                with open(results_file_name, 'w') as results_file:
-                    json.dump(tmp_rds_instance, results_file, indent=4, default=default_serializer)
+                with open(results_file_name, "w") as results_file:
+                    json.dump(
+                        tmp_rds_instance,
+                        results_file,
+                        indent=4,
+                        default=default_serializer,
+                    )
                 log_json(f"Results written to {results_file_name}.")
                 log_json("pg_anon completed successfully!")
                 log_json(final_log_message)
 
                 if aws_secret_name:
-                    aws_utils.save_secret_to_aws(aws_secret_name, tmp_rds_instance, secret_profile)
+                    aws_utils.save_secret_to_aws(
+                        aws_secret_name, tmp_rds_instance, secret_profile
+                    )
             else:
-                log_json("Anonymization failed.", level='error')
+                log_json("Anonymization failed.", level="error")
                 exit(1)
         else:
-            log_json("Database state does not match the existing file, humans, please review this!", level='error')
+            log_json(
+                "Database state does not match the existing file, humans, please review this!",
+                level="error",
+            )
             exit(1)
     state_utils.save_or_remove(output_file, save_remote_state)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

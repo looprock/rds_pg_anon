@@ -1,6 +1,12 @@
 #!/bin/bash
+
+if [ ! -d "${HOME}/pg_anon/data" ]; then
+    mkdir -p "${HOME}/pg_anon/data"
+fi
+
 podman run \
--v `pwd`/tmp/extend:/app/extend \
+-v ${HOME}/pg_anon/data:/app/data \
+-v `pwd`/pg_anon/extend:/app/extend \
 -v ${HOME}/.aws:/root/.aws \
 -e PGDATABASE=${PGDATABASE} \
 -e PGPORT=${PGPORT} \
@@ -15,4 +21,4 @@ podman run \
 -e PGANON_SECRET_PROFILE=${PGANON_SECRET_PROFILE} \
 -e AWS_PROFILE=${AWS_PROFILE} \
 ghcr.io/looprock/rds_pg_anon:test1 \
---help
+--dry-run
