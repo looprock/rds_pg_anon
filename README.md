@@ -278,8 +278,6 @@ Any faker method can be use by prefixing the type with 'faker.'
 
 ### JSON Options
 
-**defaults**: Apply default rules, which replace all instances of the following **at any level**: first_name, last_name, phone_number, email, address, zipcode, city, state, country, ssn
-
 **keys**: Replace these specific keys. **prefix with 'root'**
 
 **lists**: Update a list with fake data. **prefix with 'root'**
@@ -301,7 +299,6 @@ JSON blocks also support these global options:
     "anonymize": {
        "type": "json",
        "json": {
-           "defaults": true,
            "keys": [
                {"root['phoneNumber']": "faker.phone_number"},
                {"root['firstName']": "faker.first_name"},
