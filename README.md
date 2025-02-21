@@ -57,6 +57,7 @@ See `example_docker_run.sh` for a more thorough example.
 - PGANON_DB_TIMEOUT: set the database connection timeout (Default: 30)
 - PGANON_DB_RETRIES: set the number a times a database reconnection is attempted (Default: 10)
 - PGANON_DB_BACKOFF_TIME: set the backoff start point in seconds, will double every attempt (Default: 1)
+- PGANON_EXTEND_DIR: extend config directory (Default: ./extend)
 - PGANON_SAVE_DB: same as --savedb, This is primarily for testing and will cache the test database information and allow you run pganon against the same instance repeatedly.
 - PGANON_SECRET_PROFILE: AWS profile to use to write secret. Setting this assumes --write-secret is true
 - PGANON_SOURCE_AWS_REGION - the AWS region is identified via the boto session, but if that fails, or you wish to overwrite this, you can use this variable.
@@ -379,6 +380,7 @@ This project was informed and inspired by:
 If this doesn't fit the bill for you, you may want to check one of those out.
 
 # TODO
+- add PGDATABASE to tmp_rds_info or whatever it's called
 - create a pipeline devs can trigger and that can be scheduled
 - fix retry logic: 'Engine' object has no attribute 'connect_args'
 - fix boto logging to json

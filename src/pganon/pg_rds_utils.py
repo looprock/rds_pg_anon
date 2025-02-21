@@ -21,6 +21,8 @@ class PgRdsUtils:
         self.db_timeout = int(os.getenv('PGANON_DB_TIMEOUT', 30))
         self.db_retries = int(os.getenv('PGANON_DB_RETRIES', 10))
         self.db_backoff_time = int(os.getenv('PGANON_DB_BACKOFF_TIME', 1))
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.extend_path = os.getenv("PGANON_EXTEND_DIR", os.path.join(self.current_dir, '..', '..'))
 
     def random_pass(self, pass_length=32):
         """Generate a random password."""
@@ -155,8 +157,7 @@ class PgRdsUtils:
         return data
 
     def execute_patch_sql(self, source_host: str, stage: str) -> None:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        patch_path = os.path.join(current_dir, '..', '..', 'extend', 'patch', f'{source_host}')
+        patch_path = os.path.join(self.extend_path, 'patch', f'{source_host}')
         log_json(f"checking for {stage} stage patches under patch_path: {patch_path}")
         if not os.path.exists(patch_path):
             log_json(f"Patch path {patch_path} does not exist")

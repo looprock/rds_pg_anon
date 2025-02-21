@@ -15,7 +15,7 @@ state_utils = StateUtils()
 retry_utils = RetryUtils()
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-extend_path = os.path.join(current_dir, '..', '..')
+extend_path = os.getenv("PGANON_EXTEND_DIR", os.path.join(current_dir, '..', '..'))
 sys.path.append(extend_path)
 
 try:

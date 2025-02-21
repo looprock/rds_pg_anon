@@ -12,15 +12,17 @@ class StateUtils:
     def __init__(self, engine: Any = None):
         if engine:
             self.engine = engine
+        self.current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.extend_path = os.getenv("PGANON_EXTEND_DIR", os.path.join(self.current_dir, '..', '..'))
 
     def read_defaults(self, source_host: str = None) -> dict:
         # Load defaults from defaults.json if it exists
         log_json("searching for defaults files..", level='info')
-        defaults_path = os.path.join(os.path.dirname(__file__), '../../extend/defaults.json')
+        defaults_path = os.path.join(self.extend_path, 'defaults.json')
         log_msg = "Using defaults from defaults.json."
         log_json(f"source_host: {source_host}", level='debug')
         if source_host:
-            host_defaults_path = os.path.join(os.path.dirname(__file__), f'../../extend/defaults_{source_host}.json')
+            host_defaults_path = os.path.join(self.extend_path, f'defaults_{source_host}.json')
             log_json(f"searching for host defaults file {host_defaults_path}", level='debug')
             if os.path.exists(host_defaults_path):
                 defaults_path = host_defaults_path

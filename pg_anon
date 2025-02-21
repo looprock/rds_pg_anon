@@ -12,7 +12,7 @@ from datetime import datetime
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 src_path = os.path.join(current_dir, "src")
-extend_path = os.path.join(current_dir, "extend")
+extend_path = os.getenv("PGANON_EXTEND_DIR", os.path.join(current_dir, "extend"))
 sys.path.append(src_path)
 sys.path.append(extend_path)
 
@@ -112,7 +112,6 @@ def main(**kwargs) -> None:
     rds_source_id = os.getenv("PGANON_RDS_SOURCE_ID")
     s3_bucket_name = os.getenv("PGANON_S3_BUCKET_NAME")
     pganon_environment = os.getenv("PGANON_ENVIRONMENT")
-    pganon_data_dir = os.getenv("PGANON_DATA_DIR", "./data")
 
     if not all(
         [
@@ -131,6 +130,9 @@ def main(**kwargs) -> None:
         )
         exit(1)
 
+    log_json(f"Setting extend path to {extend_path}")
+    pganon_data_dir = os.getenv("PGANON_DATA_DIR", "./data")
+    log_json(f"Setting data dir to {pganon_data_dir}")
     db_timeout = int(os.getenv("PGANON_DB_TIMEOUT", 30))
     results_file_name = f"{pganon_data_dir}/results_{rds_source_id}_{pganon_environment}.json"
 
