@@ -96,17 +96,17 @@ class AWSUtils:
             output_file = file_name
             if destination_file:
                 output_file = destination_file
+            log_json(f"Downloading {file_name} from S3 bucket {bucket_name} to {output_file}")
             s3.download_file(bucket_name, file_name, output_file)
-            log_json(f"Downloaded {file_name} from S3 bucket {bucket_name} to {output_file}")
             return True
         except Exception as e:
             log_json(f"Failed to download {file_name} from S3: {e}. Do you need to use --initialize?", level='error')
             return False
 
-    def upload_to_s3(self,bucket_name: str, file_name: str) -> None:
+    def upload_to_s3(self,bucket_name: str, file_name: str, data_dir: str) -> None:
         s3 = boto3.client('s3')
         try:
-            s3.upload_file(file_name, bucket_name, file_name)
+            s3.upload_file(f"{data_dir}/{file_name}", bucket_name, file_name)
             log_json(f"Uploaded {file_name} to S3 bucket {bucket_name}")
         except Exception as e:
             log_json(f"Failed to upload {file_name} to S3: {e}", level='error')

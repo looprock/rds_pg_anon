@@ -1,6 +1,16 @@
 #!/bin/bash
-podman run \
--v `pwd`/tmp/extend:/app/extend \
+
+if [ ! -d "${HOME}/pg_anon/data" ]; then
+    mkdir -p "${HOME}/pg_anon/data"
+fi
+
+if [ ! -d "${HOME}/pg_anon/extend" ]; then
+    mkdir -p "${HOME}/pg_anon/extend"
+fi
+docker pull ghcr.io/looprock/rds_pg_anon:dev-latest
+docker run \
+-v ${HOME}/pg_anon/data:/app/data \
+-v ${HOME}/pg_anon/extend:/app/extend \
 -v ${HOME}/.aws:/root/.aws \
 -e PGDATABASE=${PGDATABASE} \
 -e PGPORT=${PGPORT} \
@@ -13,6 +23,7 @@ podman run \
 -e PGPASSWORD=${PGPASSWORD} \
 -e PGANON_SAVE_DB=${PGANON_SAVE_DB} \
 -e PGANON_SECRET_PROFILE=${PGANON_SECRET_PROFILE} \
+-e PGANON_DATA_DIR="/app/data" \
 -e AWS_PROFILE=${AWS_PROFILE} \
-ghcr.io/looprock/rds_pg_anon:test1 \
---help
+ghcr.io/looprock/rds_pg_anon:dev-latest \
+--dry-run

@@ -41,22 +41,23 @@ class StateUtils:
             log_json(f"Failed to read {state_file}: {e}", level='error')
             exit(1)
 
-    def read_existing_state(self, output_file: str, s3_bucket_name: str = None, local_state: bool = False) -> dict:
+    def read_existing_state(self, filename: str, s3_bucket_name: str = None, destination_filename: str = None, local_state: bool = False) -> dict:
         # get the state file from S3
-        # print(f"read_existing_state local_state: {local_state}")
         if s3_bucket_name and not local_state:
-            if aws_utils.download_from_s3(s3_bucket_name, output_file):
-                log_json(f"File {output_file} downloaded from S3.")
+            if aws_utils.download_from_s3(s3_bucket_name, filename, destination_filename):
+                log_json(f"File {filename} downloaded from S3.")
             else:
-                log_json(f"Failed to download {output_file} from S3.", level='error')
+                log_json(f"Failed to download {filename} from S3.", level='error')
                 exit(1)
         # read it in as existing_data
-        error_message = f"S3 state file {output_file} not found."
+        error_message = f"S3 state file {filename} not found."
         if local_state:
-            log_json(f"Using Local state file {output_file}.")
-            error_message = f"Local state file {output_file} not found."
-        if os.path.exists(output_file):
-            existing_data = self.state_to_dict(output_file)
+            log_json(f"Using Local state file {filename}.")
+            error_message = f"Local state file {filename} not found."
+        if not destination_filename:
+            destination_filename = filename
+        if os.path.exists(destination_filename):
+            existing_data = self.state_to_dict(destination_filename)
         else:
             log_json(error_message, level='error')
             exit(1)
@@ -81,9 +82,8 @@ class StateUtils:
                     column_data.pop("anonymize", None)
         return data
 
-    def match_state(self, output_file: str, s3_bucket_name: str, target_engine: Any, initialize: bool, save: bool, local_state: bool) -> None:
-        work_file = f"work_{output_file}"
-        stored_state = self.read_existing_state(output_file, s3_bucket_name, local_state)
+    def match_state(self, stored_state: dict, output_file: str, target_engine: Any, initialize: bool, save: bool) -> None:
+        work_file = f"{output_file}.work"
         # remove the custom column fields from the stored state
         stored_state = self.process_custom_fields(stored_state)
         # get the current state from the database
