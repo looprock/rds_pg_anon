@@ -54,6 +54,8 @@ class StateUtils:
         if local_state:
             log_json(f"Using Local state file {filename}.")
             error_message = f"Local state file {filename} not found."
+        if not destination_filename:
+            destination_filename = filename
         if os.path.exists(destination_filename):
             existing_data = self.state_to_dict(destination_filename)
         else:
