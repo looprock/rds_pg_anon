@@ -54,9 +54,10 @@ See `example_docker_run.sh` for a more thorough example.
 
 - PGANON_CREDS_SECRET: a secret to write credentials information. (Default: /infra/[PGANON_ENVIRONMENT]/rds/pg-anon/credentials)
 - PGANON_DATA_DIR: data directory to write output files to (Default: "./data")
-- PGANON_DB_TIMEOUT: set the database connection timeout (Default: 30)
-- PGANON_DB_RETRIES: set the number a times a database reconnection is attempted (Default: 10)
 - PGANON_DB_BACKOFF_TIME: set the backoff start point in seconds, will double every attempt (Default: 1)
+- PGANON_DB_MAX_RECORD_BATCH: set the maximum number of records in a batch update (Default: 100)
+- PGANON_DB_RETRIES: set the number a times a database reconnection is attempted (Default: 10)
+- PGANON_DB_TIMEOUT: set the database connection timeout (Default: 30)
 - PGANON_EXTEND_DIR: extend config directory (Default: ./extend)
 - PGANON_SAVE_DB: same as --savedb, This is primarily for testing and will cache the test database information and allow you run pganon against the same instance repeatedly.
 - PGANON_SECRET_PROFILE: AWS profile to use to write secret. Setting this assumes --write-secret is true
@@ -75,6 +76,7 @@ You can use the **all uppercase** name of the options [here](https://boto3.amazo
 * for instance, you might want to consider:
     - export PGANON_RDS_VPCSECURITYGROUPIDS="sg-00000000000000000,sg-11111111111111111"
     - export PGANON_RDS_DBSUBNETGROUPNAME="test-security-group"
+    - export PGANON_RDS_DBINSTANCECLASS="db.t4g.large" # default is small, but you might want a bigger instance to process larger batches
 
 
 ## Command Line Options

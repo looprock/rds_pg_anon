@@ -6,6 +6,7 @@ import json
 import re
 import os
 import sys
+import math
 from deepdiff.search import grep
 from .serializer import default_serializer
 from .state_utils import StateUtils
@@ -47,6 +48,7 @@ class Anonymizer:
         self.debug = debug
         if self.dry_run:
             self.verbose = True
+        self.db_max_record_batch = int(os.getenv("PGANON_DB_MAX_RECORD_BATCH", 100))
 
     def update_value(self, data, key, value):
         # print(f"key: {key}")
@@ -256,6 +258,23 @@ class Anonymizer:
             log_json(f"Column {column_name} in {schema_name}.{table_name} is not a string type.", level='debug')
             return []
 
+    def update_data(self, session, schema_name, table_name, column_name, updates, local_debug):
+        if updates:
+            try:
+                update_stmt = text(f"""
+                    UPDATE {schema_name}.{table_name}
+                    SET {column_name} = :fake_data
+                    WHERE id = :id
+                """)
+                if not self.dry_run:
+                    session.execute(update_stmt, updates)
+                session.commit()
+            except Exception as e:
+                log_json(f"Error updating data: {e}", level='error')
+                if local_debug:
+                    print(updates)
+                return False
+
     def anonymize_data(self, json_data: dict) -> None:
         local_debug = self.debug
         # Ensure json_data is a dictionary
@@ -283,6 +302,9 @@ class Anonymizer:
                                     if "foreign_key" in anonymize_data and anonymize_data["foreign_key"]:
                                         log_json(f"column identified as a foreign_key in anonymize_data for {schema_name}.{table_name}.{column_name}, skipping...")
                                         break
+                                    count_stmt = text(f"SELECT COUNT(*) FROM {schema_name}.{table_name}")
+                                    total_updates = session.execute(count_stmt).scalar()  # Get total count of records
+                                    total_batches = math.ceil(total_updates / self.db_max_record_batch)
                                     # it is expensive to index all the existing values, so we only do it if unique is true
                                     if "unique" in anonymize_data and anonymize_data["unique"] and anonymize_data["type"] != "json":
                                             log_json(f"found unique constraint for column {schema_name}.{table_name}.{column_name}.")
@@ -299,6 +321,7 @@ class Anonymizer:
                                     log_json(f"select_stmt: {select_stmt}", level='debug')
                                     result = session.execute(select_stmt)
                                     updates = []
+                                    updates_count = 1
                                     for row in result:
                                         if row[1]:
                                             if self.verbose:
@@ -347,20 +370,13 @@ class Anonymizer:
                                                     else:
                                                         print("Fake data:")
                                                         print(original_fake_data)
-                                    # Execute all updates in a batch
+                                            if len(updates) >= self.db_max_record_batch:
+                                                log_json(f"Update {updates_count} of {total_batches}: updating {str(len(updates))} {schema_name}.{table_name}.{column_name} records...")
+                                                self.update_data(session, schema_name, table_name, column_name, updates, local_debug)
+                                                updates = []
+                                                updates_count += 1
+                                    # Execute all remaining updates in a batch
                                     if updates:
-                                        try:
-                                            update_stmt = text(f"""
-                                                UPDATE {schema_name}.{table_name}
-                                                SET {column_name} = :fake_data
-                                                WHERE id = :id
-                                            """)
-                                            if not self.dry_run:
-                                                session.execute(update_stmt, updates)
-                                            session.commit()
-                                        except Exception as e:
-                                            log_json(f"Error updating data: {e}", level='error')
-                                            if local_debug:
-                                                print(updates)
-                                            return False
+                                        log_json(f"Updating remaining {str(len(updates))} {schema_name}.{table_name}.{column_name} records...")
+                                        self.update_data(session, schema_name, table_name, column_name, updates, local_debug)
         return True
