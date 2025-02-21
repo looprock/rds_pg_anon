@@ -7,7 +7,7 @@ fi
 if [ ! -d "${HOME}/pg_anon/extend" ]; then
     mkdir -p "${HOME}/pg_anon/extend"
 fi
-
+docker pull ghcr.io/looprock/rds_pg_anon:dev-latest
 docker run \
 -v ${HOME}/pg_anon/data:/app/data \
 -v ${HOME}/pg_anon/extend:/app/extend \
