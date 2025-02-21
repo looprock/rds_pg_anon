@@ -1,5 +1,7 @@
 #!/bin/bash
 
+CONTAINER_IMAGE="ghcr.io/looprock/rds_pg_anon:latest"
+
 if [ ! -d "${HOME}/pg_anon/data" ]; then
     mkdir -p "${HOME}/pg_anon/data"
 fi
@@ -7,7 +9,7 @@ fi
 if [ ! -d "${HOME}/pg_anon/extend" ]; then
     mkdir -p "${HOME}/pg_anon/extend"
 fi
-docker pull ghcr.io/looprock/rds_pg_anon:dev-latest
+docker pull ${CONTAINER_IMAGE}
 docker run \
 -v ${HOME}/pg_anon/data:/app/data \
 -v ${HOME}/pg_anon/extend:/app/extend \
@@ -25,5 +27,5 @@ docker run \
 -e PGANON_SECRET_PROFILE=${PGANON_SECRET_PROFILE} \
 -e PGANON_DATA_DIR="/app/data" \
 -e AWS_PROFILE=${AWS_PROFILE} \
-ghcr.io/looprock/rds_pg_anon:latest \
+${CONTAINER_IMAGE} \
 --dry-run
