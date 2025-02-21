@@ -16,13 +16,29 @@ While uniqueness is enforceable for basic column-level anonymized values, it's n
 
 # Usage
 
-## installation
+## Installation / Setup
+
+### Locally
 
 To install then environment and all it's dependencies, install [uv](https://docs.astral.sh/uv/) and run: `uv sync`
 
 You should now be able to, either:
 - source the environment using: `. ./.venv/bin/activate` then running `./pg_anon [arguments]`
 - use: `uv run ./pg_anon [arguments]` 
+
+### Container
+
+You can use the generated [container image](https://github.com/looprock/rds_pg_anon/pkgs/container/rds_pg_anon) by re-mapping a few directories with your customization.
+
+**example mappings**:
+
+```
+-v ${HOME}/pg_anon/data:/app/data \
+-v ${HOME}/pg_anon/extend:/app/extend \
+-v ${HOME}/.aws:/root/.aws
+```
+
+See `example_docker_run.sh` for a more thorough example.
 
 ## Required environment variables
 
