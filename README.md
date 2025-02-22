@@ -66,6 +66,8 @@ See `example_docker_run.sh` for a more thorough example.
 - PGANON_SECRET_PROFILE: AWS profile to use to write secret. Setting this assumes --write-secret is true
 - PGANON_SOURCE_AWS_REGION - the AWS region is identified via the boto session, but if that fails, or you wish to overwrite this, you can use this variable.
 - PGANON_TARGET_AWS_REGION - the AWS region is identified via the boto session, but if that fails, or you wish to overwrite this, you can use this variable.
+- PGANON_WAITER_DELAY: boto3 waiter delay between attempts (Default: 30)
+- PGANON_WAITER_MAX_ATTEMPTS: boto3 waiter maximum attempts (Default: 120)
 
 #### Optional RDS configuration
 
