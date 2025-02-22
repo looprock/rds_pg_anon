@@ -55,7 +55,7 @@ See `example_docker_run.sh` for a more thorough example.
 - PGANON_CREDS_SECRET: a secret to write credentials information. (Default: /infra/[PGANON_ENVIRONMENT]/rds/pg-anon/credentials)
 - PGANON_DATA_DIR: data directory to write output files to (Default: "./data")
 - PGANON_DB_BACKOFF_TIME: set the backoff start point in seconds, will double every attempt (Default: 1)
-- PGANON_DB_MAX_RECORD_BATCH: set the maximum number of records in a batch update (Default: 100)
+- PGANON_DB_MAX_RECORD_BATCH: set the maximum number of records in a batch update (Default: 10000)
 - PGANON_DB_RETRIES: set the number a times a database reconnection is attempted (Default: 10)
 - PGANON_DB_TIMEOUT: set the database connection timeout (Default: 30)
 - PGANON_EXTEND_DIR: extend config directory (Default: ./extend)

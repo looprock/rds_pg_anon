@@ -48,11 +48,9 @@ class Anonymizer:
         self.debug = debug
         if self.dry_run:
             self.verbose = True
-        self.db_max_record_batch = int(os.getenv("PGANON_DB_MAX_RECORD_BATCH", 100))
+        self.db_max_record_batch = int(os.getenv("PGANON_DB_MAX_RECORD_BATCH", 10000))
 
     def update_value(self, data, key, value):
-        # print(f"key: {key}")
-        # print(f"value: {value}")
         try:
             exec(f"{key} = value")
         except Exception as e:
