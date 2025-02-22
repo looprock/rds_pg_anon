@@ -43,7 +43,9 @@ def setup_logging(log_dir: str = default_log_dir):
 
     # Create a console handler
     ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
+    ch.setLevel(logging.INFO)
+    if log_level == 'DEBUG':
+        ch.setLevel(logging.DEBUG)
     ch.setFormatter(formatter)
     logger.addHandler(ch)
     boto3_logger.addHandler(ch)
