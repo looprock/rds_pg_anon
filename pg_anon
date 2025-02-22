@@ -111,6 +111,10 @@ def main(**kwargs) -> None:
             logger.error("create_admin_user is required when create_admin_password is set")
             exit(1)
 
+    if dry_run and snapshot:
+        logger.error("--snapshot and --dry-run cannot be used together since they can create a snapshot with original data!")
+        exit(1)
+
     # Retrieve environment variables using standard psql names
     db_user = os.getenv("PGUSER")
     db_password = os.getenv("PGPASSWORD")
