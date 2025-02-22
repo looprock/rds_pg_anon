@@ -1,5 +1,5 @@
 import os
-from .loglib import log_json
+from .loglib import logger, setup_logging
 import boto3
 import json
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
@@ -7,6 +7,11 @@ import random
 import string
 
 class AWSUtils:
+    def __init__(self):
+        setup_logging()
+        self.waiter_max_attempts = int(os.getenv("PGANON_WAITER_MAX_ATTEMPTS", 120))
+        self.waiter_delay = int(os.getenv("PGANON_WAITER_DELAY", 30))
+
     def rds_env_var_to_options(self) -> dict:
         result_dict = {}
         env_vars = os.environ
@@ -17,7 +22,7 @@ class AWSUtils:
             "DBINSTANCEIDENTIFIER": {"option": "DBInstanceIdentifier", "type": "string"},
             "DBSNAPSHOTIDENTIFIER": {"option": "DBSnapshotIdentifier", "type": "string"},
             "DBINSTANCECLASS": {"option": "DBInstanceClass", "type": "string"},
-            "PORT": {"option": "Port", "type": "interger"},
+            "PORT": {"option": "Port", "type": "integer"},
             "AVAILABILITYZONE": {"option": "AvailabilityZone", "type": "string"},
             "DBSUBNETGROUPNAME": {"option": "DBSubnetGroupName", "type": "string"},
             "MULTIAZ": {"option": "MultiAZ", "type": "boolean"},
@@ -96,20 +101,20 @@ class AWSUtils:
             output_file = file_name
             if destination_file:
                 output_file = destination_file
-            log_json(f"Downloading {file_name} from S3 bucket {bucket_name} to {output_file}")
+            logger.info(f"Downloading {file_name} from S3 bucket {bucket_name} to {output_file}")
             s3.download_file(bucket_name, file_name, output_file)
             return True
         except Exception as e:
-            log_json(f"Failed to download {file_name} from S3: {e}. Do you need to use --initialize?", level='error')
+            logger.error(f"Failed to download {file_name} from S3: {e}. Do you need to use --initialize?")
             return False
 
     def upload_to_s3(self,bucket_name: str, file_name: str, data_dir: str) -> None:
         s3 = boto3.client('s3')
         try:
             s3.upload_file(f"{data_dir}/{file_name}", bucket_name, file_name)
-            log_json(f"Uploaded {file_name} to S3 bucket {bucket_name}")
+            logger.info(f"Uploaded {file_name} to S3 bucket {bucket_name}")
         except Exception as e:
-            log_json(f"Failed to upload {file_name} to S3: {e}", level='error')
+            logger.error(f"Failed to upload {file_name} to S3: {e}")
             exit(1)
 
     def get_rds_host_by_instance_id(self, instance_id: str, region_name: str) -> str:
@@ -199,14 +204,14 @@ class AWSUtils:
             # Create a new instance from the latest snapshot
             rds_client.restore_db_instance_from_db_snapshot(**restore_params)
 
-            log_json(f"Creating new RDS instance {new_instance_id} from snapshot {latest_snapshot['DBSnapshotIdentifier']}.")
+            logger.info(f"Creating new RDS instance {new_instance_id} from snapshot {latest_snapshot['DBSnapshotIdentifier']}.")
 
             # Wait for the new instance to become available
             waiter = rds_client.get_waiter('db_instance_available')
-            waiter.config.max_attempts = 120
-            waiter.config.delay = 30
+            waiter.config.max_attempts = self.waiter_max_attempts
+            waiter.config.delay = self.waiter_delay
             waiter.wait(DBInstanceIdentifier=new_instance_id)
-            log_json(f"RDS instance {new_instance_id} is now available.")
+            logger.info(f"RDS instance {new_instance_id} is now available.")
             # get the endpoint of the new instance
             new_instance_details = rds_client.describe_db_instances(DBInstanceIdentifier=new_instance_id)
             # disable automated backups since this is just a temp instance
@@ -230,7 +235,7 @@ class AWSUtils:
             }
 
         except ClientError as e:
-            log_json(f"Failed to create new RDS instance from snapshot: {e}", level='error')
+            logger.error(f"Failed to create new RDS instance from snapshot: {e}")
 
     def save_secret_to_aws(self, secret_name: str, secret_data: dict, profile_name: str = None) -> None:
         # Save the database connection information to AWS Secrets Manager
@@ -245,16 +250,16 @@ class AWSUtils:
                 Name=secret_name,
                 SecretString=json.dumps(secret_data)
             )
-            log_json(f"Secret {secret_name} created successfully.", level='info')
+            logger.info(f"Secret {secret_name} created successfully.")
         except client.exceptions.ResourceExistsException:
             # If the secret exists, update it
             client.update_secret(
                 SecretId=secret_name,
                 SecretString=json.dumps(secret_data)
             )
-            log_json(f"Secret {secret_name} updated successfully.", level='info')
+            logger.info(f"Secret {secret_name} updated successfully.")
         except Exception as e:
-            log_json(f"Failed to save secret {secret_name}: {e}", level='error')
+            logger.error(f"Failed to save secret {secret_name}: {e}")
 
     def create_db_snapshot(self, instance_id: str, snapshot_id: str) -> None:
         """Create a snapshot of the specified RDS instance."""
@@ -266,52 +271,52 @@ class AWSUtils:
                 existing_snapshots = rds_client.describe_db_snapshots(DBSnapshotIdentifier=snapshot_id)
             except ClientError as e:
                 if e.response['Error']['Code'] == 'DBSnapshotNotFound':
-                    log_json(f"Snapshot {snapshot_id} not found, proceeding to create a new one.", level='info')
+                    logger.info(f"Snapshot {snapshot_id} not found, proceeding to create a new one.")
                 else:
-                    log_json(f"Failed to describe snapshot: {e}", level='error')
+                    logger.error(f"Failed to describe snapshot: {e}")
                     return
             if existing_snapshots['DBSnapshots']:
                 # If it exists, delete the existing snapshot
                 rds_client.delete_db_snapshot(DBSnapshotIdentifier=snapshot_id)
                 waiter = rds_client.get_waiter('db_snapshot_deleted')
-                waiter.config.max_attempts = 120
-                waiter.config.delay = 30
+                waiter.config.max_attempts = self.waiter_max_attempts
+                waiter.config.delay = self.waiter_delay
                 waiter.wait(DBSnapshotIdentifier=snapshot_id)
-                log_json(f"Deleted existing snapshot {snapshot_id} before creating a new one.")
+                logger.info(f"Deleted existing snapshot {snapshot_id} before creating a new one.")
 
             rds_client.create_db_snapshot(
                 DBSnapshotIdentifier=snapshot_id,
                 DBInstanceIdentifier=instance_id
             )
-            log_json(f"Snapshot {snapshot_id} creation initiated for instance {instance_id}.")
+            logger.info(f"Snapshot {snapshot_id} creation initiated for instance {instance_id}.")
 
             # Wait for the snapshot to become available
             waiter = rds_client.get_waiter('db_snapshot_completed')
-            waiter.config.max_attempts = 120
-            waiter.config.delay = 30
+            waiter.config.max_attempts = self.waiter_max_attempts
+            waiter.config.delay = self.waiter_delay
             waiter.wait(DBSnapshotIdentifier=snapshot_id)
 
-            log_json(f"Snapshot {snapshot_id} created successfully for instance {instance_id}.")
+            logger.info(f"Snapshot {snapshot_id} created successfully for instance {instance_id}.")
         except ClientError as e:
-            log_json(f"Failed to create snapshot: {e}", level='error')
+            logger.error(f"Failed to create snapshot: {e}")
             exit(1)
 
     def delete_instance(self, instance_id: str, snapshot_id: str) -> dict:
-        log_json(f"Deleting RDS instance {instance_id} and creating final snapshot {snapshot_id}.", level='info')
+        logger.info(f"Deleting RDS instance {instance_id} and creating final snapshot {snapshot_id}.")
         try:
             rds_client = boto3.client('rds')
             # Create a final snapshot before deletion
             rds_client.delete_db_instance(DBInstanceIdentifier=instance_id, SkipFinalSnapshot=False, FinalDBSnapshotIdentifier=snapshot_id)
             waiter = rds_client.get_waiter('db_snapshot_completed')
-            waiter.config.max_attempts = 120
-            waiter.config.delay = 30
+            waiter.config.max_attempts = self.waiter_max_attempts
+            waiter.config.delay = self.waiter_delay
             waiter.wait(DBSnapshotIdentifier=snapshot_id)
             snapshot_info = rds_client.describe_db_snapshots(DBSnapshotIdentifier=snapshot_id)
             snapshot_arn = snapshot_info['DBSnapshots'][0]['DBSnapshotArn']
-            log_json(f"Deleted RDS instance {instance_id}, final snapshot {snapshot_id} created.")
+            logger.info(f"Deleted RDS instance {instance_id}, final snapshot {snapshot_id} created.")
             return {"snapshot_arn": snapshot_arn}
         except ClientError as e:
-            log_json(f"Failed to delete RDS instance {instance_id}: {e}", level='error')
+            logger.error(f"Failed to delete RDS instance {instance_id}: {e}")
             exit(1)
 
     def delete_snapshot_if_exists(self, snapshot_id: str) -> None:
@@ -323,16 +328,16 @@ class AWSUtils:
             existing_snapshots = rds_client.describe_db_snapshots(DBSnapshotIdentifier=snapshot_id)
         except ClientError as e:
             if e.response['Error']['Code'] == 'DBSnapshotNotFound':
-                log_json(f"Snapshot {snapshot_id} not found, proceeding to create a new one.", level='info')
+                logger.info(f"Snapshot {snapshot_id} not found, proceeding to create a new one.")
             else:
-                log_json(f"Failed to describe snapshot: {e}", level='error')
+                logger.error(f"Failed to describe snapshot: {e}")
                 return
         if existing_snapshots:
             if 'DBSnapshots' in existing_snapshots and existing_snapshots['DBSnapshots']:
                 # If it exists, delete the existing snapshot
                 rds_client.delete_db_snapshot(DBSnapshotIdentifier=snapshot_id)
                 waiter = rds_client.get_waiter('db_snapshot_deleted')
-                waiter.config.max_attempts = 120
-                waiter.config.delay = 30
+                waiter.config.max_attempts = self.waiter_max_attempts
+                waiter.config.delay = self.waiter_delay
                 waiter.wait(DBSnapshotIdentifier=snapshot_id)
-                log_json(f"Deleted existing snapshot {snapshot_id} before creating a new one.")
+                logger.info(f"Deleted existing snapshot {snapshot_id} before creating a new one.")

@@ -2,11 +2,12 @@ from sqlalchemy import create_engine
 from typing import Any
 import os
 import sys
-from .loglib import log_json
+from .loglib import logger, setup_logging
 import time
 
 class RetryUtils:
     def __init__(self):
+        setup_logging()
         self.db_timeout = int(os.getenv('PGANON_DB_TIMEOUT', 30))
         self.db_retries = int(os.getenv('PGANON_DB_RETRIES', 10))
         self.db_backoff_time = int(os.getenv('PGANON_DB_BACKOFF_TIME', 1))
@@ -23,9 +24,9 @@ class RetryUtils:
                 )
                 return retry_engine
             except Exception as e:
-                log_json(f"Attempt {attempt + 1} to connect to the database failed: {e}", level='error')
+                logger.error(f"Attempt {attempt + 1} to connect to the database failed: {e}")
                 if attempt < retries - 1:
-                    log_json(f"Waiting for {backoff_time} seconds before retrying...", level='info')
+                    logger.info(f"Waiting for {backoff_time} seconds before retrying...")
                     time.sleep(backoff_time)  # Wait before retrying
                     backoff_time *= 2  # Double the backoff time for the next attempt
                 else:
@@ -38,9 +39,9 @@ class RetryUtils:
             try:
                 return session  # Return a new session
             except Exception as e:
-                log_json(f"Attempt {attempt + 1} to create session failed: {e}", level='error')
+                logger.error(f"Attempt {attempt + 1} to create session failed: {e}")
                 if attempt < retries - 1:
-                    log_json(f"Waiting for {backoff_time} seconds before retrying...", level='info')
+                    logger.info(f"Waiting for {backoff_time} seconds before retrying...")
                     time.sleep(backoff_time)
                     backoff_time *= 2  # Double the backoff time
                 else:
