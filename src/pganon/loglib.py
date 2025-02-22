@@ -2,7 +2,7 @@ import logging
 import datetime
 import json
 import os
-
+import sys
 # Create a logger instance that will be used across the application
 logger = logging.getLogger('pganon')
 logger.setLevel(logging.INFO)
@@ -23,6 +23,11 @@ def setup_logging():
     global logger
     log_dir = os.getenv("PGANON_LOG_PATH")
     log_filename = os.getenv("PGANON_LOG_FILE")
+
+    if not log_dir or not log_filename:
+        logger.error("PGANON_LOG_PATH and PGANON_LOG_FILE must be set")
+        sys.exit(1)
+
     # Clear existing handlers
     if logger.hasHandlers():
         logger.handlers.clear()
