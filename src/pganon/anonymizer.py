@@ -373,11 +373,11 @@ class Anonymizer:
                                                         logger.info(original_fake_data)
                                             if len(updates) >= self.db_max_record_batch:
                                                 logger.info(f"Update {updates_count} of {total_batches}: updating {str(len(updates))} {schema_name}.{table_name}.{column_name} records...")
-                                                self.update_data(session, schema_name, table_name, column_name, updates, self.debug)
+                                                self.update_data(session, schema_name, table_name, column_name, updates)
                                                 updates = []
                                                 updates_count += 1
                                     # Execute all remaining updates in a batch
                                     if updates:
                                         logger.info(f"Updating remaining {str(len(updates))} {schema_name}.{table_name}.{column_name} records...")
-                                        self.update_data(session, schema_name, table_name, column_name, updates, self.debug)
+                                        self.update_data(session, schema_name, table_name, column_name, updates)
         return True
