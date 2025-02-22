@@ -54,11 +54,14 @@ See `example_docker_run.sh` for a more thorough example.
 
 - PGANON_CREDS_SECRET: a secret to write credentials information. (Default: /infra/[PGANON_ENVIRONMENT]/rds/pg-anon/credentials)
 - PGANON_DATA_DIR: data directory to write output files to (Default: "./data")
+- PGANON_DEBUG: turn on debug logging
 - PGANON_DB_BACKOFF_TIME: set the backoff start point in seconds, will double every attempt (Default: 1)
 - PGANON_DB_MAX_RECORD_BATCH: set the maximum number of records in a batch update (Default: 10000)
 - PGANON_DB_RETRIES: set the number a times a database reconnection is attempted (Default: 10)
 - PGANON_DB_TIMEOUT: set the database connection timeout (Default: 30)
+- PGANON_DISABLE_LOCAL_LOGGING: don't log to local log files
 - PGANON_EXTEND_DIR: extend config directory (Default: ./extend)
+- PGANON_LOG_DIR: location to log to (Default: ./logs)
 - PGANON_SAVE_DB: same as --savedb, This is primarily for testing and will cache the test database information and allow you run pganon against the same instance repeatedly.
 - PGANON_SECRET_PROFILE: AWS profile to use to write secret. Setting this assumes --write-secret is true
 - PGANON_SOURCE_AWS_REGION - the AWS region is identified via the boto session, but if that fails, or you wish to overwrite this, you can use this variable.
@@ -382,13 +385,6 @@ This project was informed and inspired by:
 If this doesn't fit the bill for you, you may want to check one of those out.
 
 # TODO
-- add PGDATABASE to tmp_rds_info or whatever it's called
-- create a pipeline devs can trigger and that can be scheduled
 - fix retry logic: 'Engine' object has no attribute 'connect_args'
-- fix boto logging to json
-- monitor for failed pipeline runs
-- monitor for long lived dbinspect rds instances on all accounts
 - do a restore -> unencrypted snapshot -> restore cycle on db to remove encryption
 - support all env vars as config file as well: if config/config_[RDS_SOURCE_ID]_[PGANON_ENVIRONMENT].??
-- create a docker image
-- maybe try deploying via: https://docs.dbos.dev/

@@ -1,4 +1,4 @@
-from .loglib import log_json
+from .loglib import setup_logging, logger
 from faker import Faker
 from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
@@ -14,18 +14,23 @@ from .retry_utils import RetryUtils
 
 state_utils = StateUtils()
 retry_utils = RetryUtils()
+setup_logging()
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 extend_path = os.getenv("PGANON_EXTEND_DIR", os.path.join(current_dir, '..', '..'))
 sys.path.append(extend_path)
+if os.getenv("PGANON_LOG_DIR"):
+    log_dir = os.getenv("PGANON_LOG_DIR")
+else:
+    log_dir = os.path.join(current_dir, "..", "..", "logs")
 
 try:
     from extend.custom_data_types import CustomDataTypes # type: ignore
     custom_data_types = CustomDataTypes()
-    log_json("custom_data_types loaded...")
+    logger.info("custom_data_types loaded...")
 except ImportError:
     custom_data_types = None
-    log_json("custom_data_types not found...")
+    logger.info("custom_data_types not found...")
 
 # sys.exit(0)
 
@@ -54,17 +59,17 @@ class Anonymizer:
         try:
             exec(f"{key} = value")
         except Exception as e:
-            log_json(f"Error updating value key: {key} value: {value} error: {e}", level='error')
+            logger.error(f"Error updating value key: {key} value: {value} error: {e}")
             sys.exit(1)
         return data
 
     def replace_all_in_dict(self, anonymize_data: dict, data: dict, search_string: str, new_value: str, exclude_from_all_keys: list = []) -> dict:
         ks = data | grep(search_string)
-        # print("exclude_from_all_keys:")
-        # print(exclude_from_all_keys)
+        logger.debug("exclude_from_all_keys:")
+        logger.debug(exclude_from_all_keys)
         if "matched_paths" in ks:
-            # print("matched_paths:")
-            # print(ks["matched_paths"])
+            logger.debug("matched_paths:")
+            logger.debug(ks["matched_paths"])
             for path in ks["matched_paths"]:
                 skip = False
                 # filter out ignore_keys
@@ -72,48 +77,48 @@ class Anonymizer:
                     for ignore_key in anonymize_data["ignore_keys"]:
                         ignore_key_pattern = rf"'{ignore_key}'"
                         if re.search(ignore_key_pattern, path, re.IGNORECASE):
-                            log_json(f"Ignoring key '{ignore_key}' in path '{path}'", level='debug')
+                            logger.debug(f"Ignoring key '{ignore_key}' in path '{path}'")
                             skip = True
                             break
                 if skip:
                     continue
                 new_path = path.replace("root", "data")
-                # print("new_path:")
-                # print(new_path)
+                logger.debug("new_path:")
+                logger.debug(new_path)
                 if new_path in exclude_from_all_keys:
-                    # print(f"--- Ignoring explicitly configured path '{new_path}'")
+                    logger.debug(f"--- Ignoring explicitly configured path '{new_path}'")
                     continue
-                # else:
-                #     print(f"not in exclude_from_all_keys: {new_path}")
-                # print(f"*** Continuing to process {new_path}...")
+                else:
+                    logger.debug(f"not in exclude_from_all_keys: {new_path}")
+                logger.debug(f"*** Continuing to process {new_path}...")
                 pattern = rf"'{search_string}'"
                 if re.search(pattern, new_path, re.IGNORECASE):
                     message = f"Key match found for '{search_string}' in {new_path}"
-                    # print(message)
-                    log_json(message, level='debug')
+                    logger.debug(message)
+                    logger.debug(message)
                     data = self.update_value(data, new_path, new_value)
                 else:
-                    log_json(f"No match found for '{search_string}' in {new_path}", level='debug')
+                    logger.debug(f"No match found for '{search_string}' in {new_path}")
         if "matched_values" in ks:
             for path in ks["matched_values"]:
-                # print(f"path: {path}")
+                logger.debug(f"path: {path}")
                 new_path = path.replace("root", "data")
-                log_json(f"new_path: {new_path}", level='debug')
+                logger.debug(f"new_path: {new_path}")
                 kv = eval(new_path)
                 # filter out persist_values
                 if "persist_values" in anonymize_data:
                     for persist_value in anonymize_data["persist_values"]:
                         if kv == persist_value:
-                            log_json(f"Ignoring persist_value '{persist_value}' in {new_path}")
+                            logger.debug(f"Ignoring persist_value '{persist_value}' in {new_path}")
                             continue
                 # make sure we exactly match the search string
                 if kv == search_string:
                     message = f"Value match found for '{search_string}' in {new_path}"
-                    # print(message)
-                    log_json(message, level='debug')
+                    logger.debug(message)
+                    logger.debug(message)
                     data = self.update_value(data, new_path, new_value)
                 else:
-                    log_json(f"No match found for '{search_string}' in {new_path}", level='debug')
+                    logger.debug(f"No match found for '{search_string}' in {new_path}")
         return data
 
     def return_fake_data_list(self, count: int, data_type: str) -> list:
@@ -141,8 +146,8 @@ class Anonymizer:
 
     def json_fake_data(self, data: dict, anonymize_data: dict) -> dict:
         json_data = anonymize_data["json"]
-        # print("starting data:")
-        # print(data)
+        logger.debug("starting data:")
+        logger.debug(data)
 
         exclude_from_all_keys = []
 
@@ -150,14 +155,14 @@ class Anonymizer:
         if "keys" in json_data:
             for key in json_data["keys"]:
                 for k, v in key.items():
-                    # print(f"start processing keys key: {k}")
+                    logger.debug(f"start processing keys key: {k}")
                     new_path = k.replace("root", "data")
                     if self.path_exists(data, new_path):
                         val_type = {"type": v}
                         data = self.update_value(data, new_path, self.generate_fake_data(val_type))
                         exclude_from_all_keys.append(new_path)
                     else:
-                        log_json(f"path {new_path} does not exist in data", level='debug')
+                        logger.debug(f"path {new_path} does not exist in data")
 
         if "lists" in json_data:
             for replace_list in json_data["lists"]:
@@ -167,18 +172,18 @@ class Anonymizer:
                         data = self.update_value(data, new_path, self.return_fake_data_list(v["count"], v["type"]))
                         exclude_from_all_keys.append(new_path)
                     else:
-                        log_json(f"path {new_path} does not exist in data", level='debug')
+                        logger.debug(f"path {new_path} does not exist in data")
 
         # if there are items in all_keys, do this:
         if "all_keys" in json_data:
             for key in json_data["all_keys"]:
                 for k, v in key.items():
-                    log_json(f"start processing all_keys key: {k}", level='debug')
+                    logger.debug(f"start processing all_keys key: {k}")
                     val_type = {"type": v}
                     data = self.replace_all_in_dict(val_type, data, k, self.generate_fake_data(val_type), exclude_from_all_keys)
 
-        # print("processed data:")
-        # print(data)
+        logger.debug("processed data:")
+        logger.debug(data)
         return data
 
     # Function to generate fake data based on column type
@@ -189,7 +194,7 @@ class Anonymizer:
             method_name = faker_type[1]
             faker_method = getattr(fake, method_name)
             if method_name in self.defaults["faker"]:
-                # print(f"found faker method {method_name} in defaults")
+                logger.debug(f"found faker method {method_name} in defaults")
                 faker_config = self.defaults["faker"].get(method_name, {})
             if faker_method:
                 if faker_config:
@@ -197,14 +202,14 @@ class Anonymizer:
                 else:
                     return faker_method()
             else:
-                log_json(f"Faker method {method_name} not found", level='error')
+                logger.error(f"Faker method {method_name} not found")
                 exit(1)
         
         if faker_type[0] == "custom":
             if not custom_data_types:
-                log_json("custom data used, but custom_data_types not found", level='error')
+                logger.error("custom data used, but custom_data_types not found")
                 exit(1)
-            # print(anonymize_data)
+            logger.debug(anonymize_data)
             # we will look for args in the custom data definition if it exists
             custom_method_args = []
             if faker_type[1]:
@@ -215,10 +220,10 @@ class Anonymizer:
                 if "args" in anonymize_data["custom"]:
                     custom_method_args = anonymize_data["custom"]["args"]
             else:
-                log_json("Unable to identify custom method", level='error')
+                logger.error("Unable to identify custom method")
                 exit(1)
-            # print(f"custom_method_name: {custom_method_name}")
-            # print(f"custom_method_args: {custom_method_args}")
+            logger.debug(f"custom_method_name: {custom_method_name}")
+            logger.debug(f"custom_method_args: {custom_method_args}")
             custom_method = getattr(custom_data_types, custom_method_name)
             if custom_method:
                 if custom_method_args:
@@ -226,7 +231,7 @@ class Anonymizer:
                 else:
                     return custom_method()
             else:
-                log_json(f"Custom method {custom_method_name} not found", level='error')
+                logger.error(f"Custom method {custom_method_name} not found")
                 exit(1)
 
         if faker_type[0] == "raw":
@@ -237,13 +242,13 @@ class Anonymizer:
 
         if anonymize_data["type"] == "json":
             if not anonymize_data["json"]:
-                log_json("No data provided for type: json", level='error')
+                logger.error("No data provided for type: json")
                 exit(1)
             return self.json_fake_data(data, anonymize_data)
         return None
 
     def fetch_existing_values(self, session, schema_name, table_name, column_name):
-        log_json(f"fetching existing values for {schema_name}.{table_name}.{column_name}", level='debug')
+        logger.debug(f"fetching existing values for {schema_name}.{table_name}.{column_name}")
         # Check the column type before fetching values
         column_type_stmt = text(f"SELECT data_type FROM information_schema.columns WHERE table_schema = '{schema_name}' AND table_name = '{table_name}' AND column_name = '{column_name}'")
         column_type_result = session.execute(column_type_stmt).fetchone()
@@ -253,10 +258,10 @@ class Anonymizer:
             result = session.execute(select_stmt)
             return [row[0] for row in result if isinstance(row[0], str)]
         else:
-            log_json(f"Column {column_name} in {schema_name}.{table_name} is not a string type.", level='debug')
+            logger.debug(f"Column {column_name} in {schema_name}.{table_name} is not a string type.")
             return []
 
-    def update_data(self, session, schema_name, table_name, column_name, updates, local_debug):
+    def update_data(self, session, schema_name, table_name, column_name, updates):
         if updates:
             try:
                 update_stmt = text(f"""
@@ -268,19 +273,17 @@ class Anonymizer:
                     session.execute(update_stmt, updates)
                 session.commit()
             except Exception as e:
-                log_json(f"Error updating data: {e}", level='error')
-                if local_debug:
-                    print(updates)
+                logger.error(f"Error updating data: {e}")
+                logger.debug(updates)
                 return False
 
     def anonymize_data(self, json_data: dict) -> None:
-        local_debug = self.debug
         # Ensure json_data is a dictionary
         if isinstance(json_data, str):
             try:
                 json_data = json.loads(json_data)
             except json.JSONDecodeError as e:
-                log_json(f"Failed to parse JSON data: {e}", level='error')
+                logger.error(f"Failed to parse JSON data: {e}")
                 return
         with retry_utils.get_session_with_retries(self.Session()) as session:
             # Traverse the JSON and update database columns with anonymize = True
@@ -294,44 +297,44 @@ class Anonymizer:
                                 anonymize_data = column.get("anonymize")
                                 if anonymize_data:
                                     if "type" not in anonymize_data:
-                                        log_json(f"type not found in anonymize_data for {schema_name}.{table_name}.{column_name}, skipping...", level='debug')
+                                        logger.debug(f"type not found in anonymize_data for {schema_name}.{table_name}.{column_name}, skipping...")
                                         break
                                     # don't process data with a foreign key constraint
                                     if "foreign_key" in anonymize_data and anonymize_data["foreign_key"]:
-                                        log_json(f"column identified as a foreign_key in anonymize_data for {schema_name}.{table_name}.{column_name}, skipping...")
+                                        logger.info(f"column identified as a foreign_key in anonymize_data for {schema_name}.{table_name}.{column_name}, skipping...")
                                         break
                                     count_stmt = text(f"SELECT COUNT(*) FROM {schema_name}.{table_name}")
                                     total_updates = session.execute(count_stmt).scalar()  # Get total count of records
                                     total_batches = math.ceil(total_updates / self.db_max_record_batch)
                                     # it is expensive to index all the existing values, so we only do it if unique is true
                                     if "unique" in anonymize_data and anonymize_data["unique"] and anonymize_data["type"] != "json":
-                                            log_json(f"found unique constraint for column {schema_name}.{table_name}.{column_name}.")
+                                            logger.info(f"found unique constraint for column {schema_name}.{table_name}.{column_name}.")
                                             existing_values = self.fetch_existing_values(session, schema_name, table_name, column_name)
                                             all_fake_data[column_fake_data] = set(existing_values)
-                                    log_json(f"anonymizing: {schema_name}.{table_name}.{column_name}")
+                                    logger.info(f"anonymizing: {schema_name}.{table_name}.{column_name}")
                                     # Fetch all rows from the table
-                                    if local_debug:
+                                    if self.debug:
                                         select_hostinfo = text("SELECT inet_server_addr() AS server_ip, inet_server_port() AS server_port;")
                                         host_result = session.execute(select_hostinfo)
                                         for row in host_result:
-                                            log_json(f"hostinfo: {row}", level='debug')
+                                            logger.debug(f"hostinfo: {row}")
                                     select_stmt = text(f"SELECT id,{column_name} FROM {schema_name}.{table_name}")
-                                    log_json(f"select_stmt: {select_stmt}", level='debug')
+                                    logger.debug(f"select_stmt: {select_stmt}")
                                     result = session.execute(select_stmt)
                                     updates = []
                                     updates_count = 1
                                     for row in result:
                                         if row[1]:
                                             if self.verbose:
-                                                print(f"*** Original data for {schema_name}.{table_name}.{column_name} id: {row.id}:")
-                                                print(json.dumps(row, indent=4, default=default_serializer))
+                                                logger.info(f"*** Original data for {schema_name}.{table_name}.{column_name} id: {row.id}:")
+                                                logger.info(json.dumps(row, indent=4, default=default_serializer))
                                             # original_data = row[1]
                                             if anonymize_data["type"] == "json":
                                                 if getattr(row, column_name):
                                                     # sometimes we get non-json data in the column, so we need to convert it to json
                                                     column_data = getattr(row, column_name)
                                                     if not isinstance(column_data, dict):
-                                                        log_json(f"Converting non-json data to json for {schema_name}.{table_name}.{column_name} id: {row.id}", level='debug')
+                                                        logger.debug(f"Converting non-json data to json for {schema_name}.{table_name}.{column_name} id: {row.id}")
                                                         column_data = {"original_data": column_data}
                                                     fake_data = self.generate_fake_data(anonymize_data, column_data)
                                             else:
@@ -344,7 +347,7 @@ class Anonymizer:
                                                         attempts += 1
 
                                                     if attempts == max_attempts:
-                                                        log_json(f"Failed to generate unique fake_data for {column_fake_data} after {max_attempts} attempts.", level='error')
+                                                        logger.error(f"Failed to generate unique fake_data for {column_fake_data} after {max_attempts} attempts.")
                                                         exit(1)
                                                     else:
                                                         all_fake_data[column_fake_data].add(fake_data)
@@ -354,7 +357,7 @@ class Anonymizer:
                                             if isinstance(fake_data, (dict, list)):
                                                 fake_data = json.dumps(fake_data, default=default_serializer)
                                             # Collect updates in a list
-                                            if local_debug:
+                                            if self.debug:
                                                 print(f"{schema_name}.{table_name}.{column_name} id: {row.id} fake_data (type: {str(type(fake_data))}): {fake_data}")
                                             updates.append({
                                                 'id': row.id,
@@ -363,18 +366,18 @@ class Anonymizer:
                                             if self.verbose:
                                                 if fake_data:
                                                     if anonymize_data["type"] == "json":
-                                                        print("Fake data:")
-                                                        print(json.dumps(original_fake_data, indent=4, default=default_serializer))
+                                                        logger.info("Fake data:")
+                                                        logger.info(json.dumps(original_fake_data, indent=4, default=default_serializer))
                                                     else:
-                                                        print("Fake data:")
-                                                        print(original_fake_data)
+                                                        logger.info("Fake data:")
+                                                        logger.info(original_fake_data)
                                             if len(updates) >= self.db_max_record_batch:
-                                                log_json(f"Update {updates_count} of {total_batches}: updating {str(len(updates))} {schema_name}.{table_name}.{column_name} records...")
-                                                self.update_data(session, schema_name, table_name, column_name, updates, local_debug)
+                                                logger.info(f"Update {updates_count} of {total_batches}: updating {str(len(updates))} {schema_name}.{table_name}.{column_name} records...")
+                                                self.update_data(session, schema_name, table_name, column_name, updates, self.debug)
                                                 updates = []
                                                 updates_count += 1
                                     # Execute all remaining updates in a batch
                                     if updates:
-                                        log_json(f"Updating remaining {str(len(updates))} {schema_name}.{table_name}.{column_name} records...")
-                                        self.update_data(session, schema_name, table_name, column_name, updates, local_debug)
+                                        logger.info(f"Updating remaining {str(len(updates))} {schema_name}.{table_name}.{column_name} records...")
+                                        self.update_data(session, schema_name, table_name, column_name, updates, self.debug)
         return True

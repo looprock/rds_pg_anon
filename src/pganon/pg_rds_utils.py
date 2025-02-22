@@ -6,7 +6,7 @@ import sys
 import re
 import random
 import string
-from .loglib import log_json
+from .loglib import logger, setup_logging
 from .retry_utils import RetryUtils
 from sqlalchemy.ext.automap import automap_base
 
@@ -14,6 +14,7 @@ retry_utils = RetryUtils()
 
 class PgRdsUtils:
     def __init__(self, engine: Any, source_host: str = None, defaults: dict = None):
+        setup_logging()
         self.Session = sessionmaker(bind=engine)
         self.engine = engine
         self.source_host = source_host
@@ -64,7 +65,7 @@ class PgRdsUtils:
         try:
             inspector = inspect(self.engine)
         except Exception as e:
-            log_json(f"Connection error while getting schema names: {e}", level='error')
+            logger.error(f"Connection error while getting schema names: {e}")
             self.engine = retry_utils.get_engine_with_retries(self.engine)
             inspector = inspect(self.engine)
         schemas = inspector.get_schema_names()
@@ -74,14 +75,14 @@ class PgRdsUtils:
         system_schemas = ["information_schema", "pg_catalog", "pg_toast"]
         # Reflect each schema
         for schema in schemas:
-            log_json(f"processing schema {schema}")
+            logger.info(f"processing schema {schema}")
             if schema not in system_schemas:
                 data["schemas"][schema] = {}
             metadata = MetaData()
             try:
                 metadata.reflect(bind=self.engine, schema=schema)
             except Exception as e:
-                log_json(f"Connection error while reflecting schema {schema}: {e}", level='error')
+                logger.error(f"Connection error while reflecting schema {schema}: {e}")
                 # Attempt to reconnect
                 self.engine = retry_utils.get_engine_with_retries(self.engine)
                 # Retry reflecting the schema after reconnecting
@@ -93,10 +94,10 @@ class PgRdsUtils:
             # populate tables and columns
             tables = {}
             for table in metadata.tables:
-                # log_json(f"Processing table {table}")
+                # logger.info(f"Processing table {table}")
                 columns = {}  # Reset columns for each table
                 for column in metadata.tables[table].columns:
-                    # log_json(f"Found column {table}.{column.name} of type {column.type}")
+                    # logger.info(f"Found column {table}.{column.name} of type {column.type}")
                     column_data = {}
                     column_data["type"] = column.type
                     # Check if the column is unique
@@ -115,12 +116,12 @@ class PgRdsUtils:
                             column_data["anonymize"]["unique"] = True
                         if column_is_foreign_key:
                             column_data["anonymize"]["foreign_key"] = True
-                        log_json(f"column: {column.name}", level='debug')
-                        log_json(f"column_data['anonymize']:   {column_data['anonymize']}", level='debug')
-                        log_json(f"column_is_unique:           {column_is_unique}", level='debug')
-                        log_json(f"column_is_foreign_key:      {column_is_foreign_key}", level='debug')
+                        logger.debug(f"column: {column.name}")
+                        logger.debug(f"column_data['anonymize']:   {column_data['anonymize']}")
+                        logger.debug(f"column_is_unique:           {column_is_unique}")
+                        logger.debug(f"column_is_foreign_key:      {column_is_foreign_key}")
                         # print(column_data)
-                    # log_json(f"Adding column {column.name} to table {table}")
+                    #  logger.info(f"Adding column {column.name} to table {table}")
                     columns[column.name] = column_data  # Ensure this is inside the column loop
                 tables[table.split(".")[1]] = {"columns": columns}
             if schema not in system_schemas and tables:
@@ -150,36 +151,36 @@ class PgRdsUtils:
 
     def execute_patch_sql(self, source_host: str, stage: str) -> None:
         patch_path = os.path.join(self.extend_path, 'patch', f'{source_host}')
-        log_json(f"checking for {stage} stage patches under patch_path: {patch_path}")
+        logger.info(f"checking for {stage} stage patches under patch_path: {patch_path}")
         if not os.path.exists(patch_path):
-            log_json(f"Patch path {patch_path} does not exist")
+            logger.info(f"Patch path {patch_path} does not exist")
             return
         # read all the sql files in the patch_path
         tmp_files = []
         for file in os.listdir(patch_path):
             if file.startswith(f"{stage}_"):
                 if file.endswith('.sql'):
-                    log_json(f"Adding {stage} patch file {file} for execution", level='debug')
+                    logger.debug(f"Adding {stage} patch file {file} for execution")
                     tmp_files.append(file)
         if not tmp_files:
-            log_json(f"No patch files found for stage {stage}", level='info')
+            logger.info(f"No patch files found for stage {stage}")
             return
         try:
             with retry_utils.get_session_with_retries(self.Session()) as session:
                 for file in tmp_files:
                     with open(os.path.join(patch_path, file), 'r') as f:
-                        log_json(f"executing {stage} patch file {patch_path}/{file}")
+                        logger.info(f"executing {stage} patch file {patch_path}/{file}")
                         sql = f.read()
                         sql_commands = sql.split(';')
                         for command in sql_commands:
                             command = command.strip()
                             if command:  # Ensure the command is not empty
-                                log_json(f"executing command: {command}", level='debug')
+                                logger.debug(f"executing command: {command}")
                                 tmp_command = text(command)
                                 session.execute(tmp_command)
                 session.commit()
         except Exception as e:
-            log_json(f"Error executing patch file {patch_path}/{file}: {e}", level='error')
+            logger.error(f"Error executing patch file {patch_path}/{file}: {e}")
             sys.exit(1)
 
 
@@ -218,10 +219,10 @@ class PgRdsUtils:
         try:
             query = text(f"CREATE ROLE {user_name} WITH LOGIN PASSWORD '{db_passwd}';")
             session.execute(query)
-            log_json(f"Created user {user_name}")
+            logger.info(f"Created user {user_name}")
             return True
         except Exception as e:
-            log_json(f"Error creating user {user_name}: {e}", level='error')
+            logger.error(f"Error creating user {user_name}: {e}")
             return False
 
     def create_new_db_owner(self, user_name: str = None, db_passwd: str = None) -> dict:
@@ -241,21 +242,21 @@ class PgRdsUtils:
                 host_result = session.execute(current_host_query)
                 for row in host_result:
                     host_info = row
-                #     log_json(f"hostinfo: {row}", level='debug')
+                # logger.debug(f"hostinfo: {row}")
                 db_permissions = self.create_db_admin_permissions(user_name, db_name)
-                log_json(f"granting db permissions for {db_name} to {user_name}", level='debug')
+                logger.debug(f"granting db permissions for {db_name} to {user_name}")
                 for db_permission in db_permissions:
-                    log_json(f"executing db permission: {db_permission}", level='debug')
+                    logger.debug(f"executing db permission: {db_permission}")
                     tmp_db_query = text(db_permission)
                     session.execute(tmp_db_query)
                 for schema_name in self.list_schemas(session):
-                    log_json(f"granting schema permissions for {db_name}.{schema_name} to {user_name}", level='debug')
+                    logger.debug(f"granting schema permissions for {db_name}.{schema_name} to {user_name}")
                     schema_permissions = self.create_schema_admin_permissions(user_name, schema_name)
                     for schema_permission in schema_permissions:
                         tmp_schema_query = text(schema_permission)
                         session.execute(tmp_schema_query)
                 session.commit()
             except Exception as e:
-                log_json(f"Error creating new db owner {user_name}: {e}", level='error')
+                logger.error(f"Error creating new db owner {user_name}: {e}")
                 return False
         return {"host_info": host_info[0], "db_name": db_name, "db_user": user_name, "db_passwd": db_passwd}
