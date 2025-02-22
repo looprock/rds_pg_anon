@@ -32,6 +32,14 @@ from src.pganon.pg_rds_utils import PgRdsUtils  # noqa: E402
 from src.pganon.state_utils import StateUtils  # noqa: E402
 from src.pganon.serializer import default_serializer  # noqa: E402
 
+if not os.getenv("PGANON_ENVIRONMENT"):
+    logger.error("PGANON_ENVIRONMENT must be set")
+    exit(1)
+
+# being a little lazy here and don't want to explicitly pass this into every function and class
+log_filename = f"{log_dir}/{os.getenv("PGANON_ENVIRONMENT")}-{datetime.datetime.now():%Y-%m-%d_%H-%M}.log"
+os.environ["PGANON_LOG_FILE"] = log_filename
+
 aws_utils = AWSUtils()
 
 

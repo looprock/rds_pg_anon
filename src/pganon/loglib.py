@@ -58,8 +58,9 @@ def setup_logging(log_dir: str = default_log_dir):
         os.makedirs(log_dir)
 
     # Define log filename
-    pganon_environment = os.getenv('PGANON_ENVIRONMENT', 'default')
-    log_filename = f"{log_dir}/{pganon_environment}-{datetime.datetime.now():%Y-%m-%d_%H-%M}.log"
+    # pganon_environment = os.getenv('PGANON_ENVIRONMENT', 'default')
+    # log_filename = f"{log_dir}/{pganon_environment}-{datetime.datetime.now():%Y-%m-%d_%H-%M}.log"
+    log_filename = os.getenv("PGANON_LOG_FILE")
     fh = logging.FileHandler(log_filename)
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter)
