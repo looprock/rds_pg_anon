@@ -12,14 +12,6 @@ import sys
 from datetime import datetime
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-if os.getenv("PGANON_LOG_DIR"):
-    log_dir = os.getenv("PGANON_LOG_DIR")
-else:
-    log_dir = os.path.join(current_dir, "logs")
-
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-
 src_path = os.path.join(current_dir, "src")
 extend_path = os.getenv("PGANON_EXTEND_DIR", os.path.join(current_dir, "extend"))
 sys.path.append(src_path)
@@ -32,16 +24,7 @@ from src.pganon.pg_rds_utils import PgRdsUtils  # noqa: E402
 from src.pganon.state_utils import StateUtils  # noqa: E402
 from src.pganon.serializer import default_serializer  # noqa: E402
 
-if not os.getenv("PGANON_ENVIRONMENT"):
-    logger.error("PGANON_ENVIRONMENT must be set")
-    exit(1)
-
-# being a little lazy here and don't want to explicitly pass this into every function and class
-log_filename = f"{log_dir}/{os.getenv("PGANON_ENVIRONMENT")}-{datetime.datetime.now():%Y-%m-%d_%H-%M}.log"
-os.environ["PGANON_LOG_FILE"] = log_filename
-
 aws_utils = AWSUtils()
-
 
 @click.command()
 @click.option("--create-admin", is_flag=True, help="Create a new admin user.")
@@ -98,7 +81,23 @@ aws_utils = AWSUtils()
     "--write-secret", type=str, help="Create a secret in AWS Secrets Manager."
 )
 def main(**kwargs) -> None:
-    setup_logging(log_dir)
+    # being a little lazy here and don't want to explicitly pass this into every function and class
+    if os.getenv("PGANON_LOG_DIR"):
+        log_dir = os.getenv("PGANON_LOG_DIR")
+    else:
+        log_dir = os.path.join(current_dir, "logs")
+
+    if not os.getenv("PGANON_ENVIRONMENT"):
+        logger.error("PGANON_ENVIRONMENT must be set")
+        exit(1)
+
+
+    os.environ["PGANON_LOG_PATH"] = log_dir
+    log_filename = f"{os.getenv("PGANON_ENVIRONMENT")}-{datetime.datetime.now():%Y-%m-%d_%H-%M}.log"
+    os.environ["PGANON_LOG_FILE"] = log_filename
+    setup_logging()
+
+    sys.exit(0)
     create_admin = kwargs.get("create_admin")
     create_admin_user = kwargs.get("create_admin_user")
     create_admin_password = kwargs.get("create_admin_password")

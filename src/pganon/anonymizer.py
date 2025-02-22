@@ -19,10 +19,6 @@ setup_logging()
 current_dir = os.path.dirname(os.path.abspath(__file__))
 extend_path = os.getenv("PGANON_EXTEND_DIR", os.path.join(current_dir, '..', '..'))
 sys.path.append(extend_path)
-if os.getenv("PGANON_LOG_DIR"):
-    log_dir = os.getenv("PGANON_LOG_DIR")
-else:
-    log_dir = os.path.join(current_dir, "..", "..", "logs")
 
 try:
     from extend.custom_data_types import CustomDataTypes # type: ignore

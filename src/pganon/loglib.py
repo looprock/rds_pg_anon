@@ -9,11 +9,6 @@ logger.setLevel(logging.INFO)
 
 # Retrieve the log level from an environment variable
 log_level = "DEBUG" if os.getenv('PGANON_DEBUG') else "INFO"
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if os.getenv("PGANON_LOG_DIR"):
-    default_log_dir = os.getenv("PGANON_LOG_DIR")
-else:
-    default_log_dir = os.path.join(current_dir, "..", "..", "logs")
 
 class CustomJsonFormatter(logging.Formatter):
     def format(self, record):
@@ -24,9 +19,10 @@ class CustomJsonFormatter(logging.Formatter):
         }
         return json.dumps(log_entry)
 
-def setup_logging(log_dir: str = default_log_dir):
+def setup_logging():
     global logger
-    
+    log_dir = os.getenv("PGANON_LOG_PATH")
+    log_filename = os.getenv("PGANON_LOG_FILE")
     # Clear existing handlers
     if logger.hasHandlers():
         logger.handlers.clear()
@@ -58,10 +54,8 @@ def setup_logging(log_dir: str = default_log_dir):
         os.makedirs(log_dir)
 
     # Define log filename
-    # pganon_environment = os.getenv('PGANON_ENVIRONMENT', 'default')
-    # log_filename = f"{log_dir}/{pganon_environment}-{datetime.datetime.now():%Y-%m-%d_%H-%M}.log"
-    log_filename = os.getenv("PGANON_LOG_FILE")
-    fh = logging.FileHandler(log_filename)
+    full_log_filename = os.path.join(log_dir, log_filename)
+    fh = logging.FileHandler(full_log_filename)
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter)
     logger.addHandler(fh)
