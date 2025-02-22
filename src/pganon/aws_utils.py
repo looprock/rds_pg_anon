@@ -203,6 +203,8 @@ class AWSUtils:
 
             # Wait for the new instance to become available
             waiter = rds_client.get_waiter('db_instance_available')
+            waiter.config.max_attempts = 120
+            waiter.config.delay = 30
             waiter.wait(DBInstanceIdentifier=new_instance_id)
             log_json(f"RDS instance {new_instance_id} is now available.")
             # get the endpoint of the new instance
@@ -271,6 +273,10 @@ class AWSUtils:
             if existing_snapshots['DBSnapshots']:
                 # If it exists, delete the existing snapshot
                 rds_client.delete_db_snapshot(DBSnapshotIdentifier=snapshot_id)
+                waiter = rds_client.get_waiter('db_snapshot_deleted')
+                waiter.config.max_attempts = 120
+                waiter.config.delay = 30
+                waiter.wait(DBSnapshotIdentifier=snapshot_id)
                 log_json(f"Deleted existing snapshot {snapshot_id} before creating a new one.")
 
             rds_client.create_db_snapshot(
@@ -281,6 +287,8 @@ class AWSUtils:
 
             # Wait for the snapshot to become available
             waiter = rds_client.get_waiter('db_snapshot_completed')
+            waiter.config.max_attempts = 120
+            waiter.config.delay = 30
             waiter.wait(DBSnapshotIdentifier=snapshot_id)
 
             log_json(f"Snapshot {snapshot_id} created successfully for instance {instance_id}.")
@@ -295,6 +303,8 @@ class AWSUtils:
             # Create a final snapshot before deletion
             rds_client.delete_db_instance(DBInstanceIdentifier=instance_id, SkipFinalSnapshot=False, FinalDBSnapshotIdentifier=snapshot_id)
             waiter = rds_client.get_waiter('db_snapshot_completed')
+            waiter.config.max_attempts = 120
+            waiter.config.delay = 30
             waiter.wait(DBSnapshotIdentifier=snapshot_id)
             snapshot_info = rds_client.describe_db_snapshots(DBSnapshotIdentifier=snapshot_id)
             snapshot_arn = snapshot_info['DBSnapshots'][0]['DBSnapshotArn']
@@ -321,4 +331,8 @@ class AWSUtils:
             if 'DBSnapshots' in existing_snapshots and existing_snapshots['DBSnapshots']:
                 # If it exists, delete the existing snapshot
                 rds_client.delete_db_snapshot(DBSnapshotIdentifier=snapshot_id)
+                waiter = rds_client.get_waiter('db_snapshot_deleted')
+                waiter.config.max_attempts = 120
+                waiter.config.delay = 30
+                waiter.wait(DBSnapshotIdentifier=snapshot_id)
                 log_json(f"Deleted existing snapshot {snapshot_id} before creating a new one.")
