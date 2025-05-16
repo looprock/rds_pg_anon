@@ -293,12 +293,12 @@ class Anonymizer:
                                 anonymize_data = column.get("anonymize")
                                 if anonymize_data:
                                     if "type" not in anonymize_data:
-                                        logger.debug(f"type not found in anonymize_data for {schema_name}.{table_name}.{column_name}, skipping...")
-                                        break
+                                        logger.debug(f"type not found in anonymize_data for {schema_name}.{table_name}.{column_name}, skipping column...")
+                                        continue
                                     # don't process data with a foreign key constraint
                                     if "foreign_key" in anonymize_data and anonymize_data["foreign_key"]:
-                                        logger.info(f"column identified as a foreign_key in anonymize_data for {schema_name}.{table_name}.{column_name}, skipping...")
-                                        break
+                                        logger.info(f"column identified as a foreign_key in anonymize_data for {schema_name}.{table_name}.{column_name}, skipping column...")
+                                        continue
                                     count_stmt = text(f"SELECT COUNT(*) FROM {schema_name}.{table_name}")
                                     total_updates = session.execute(count_stmt).scalar()  # Get total count of records
                                     total_batches = math.ceil(total_updates / self.db_max_record_batch)
