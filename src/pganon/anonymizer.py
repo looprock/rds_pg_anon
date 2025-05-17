@@ -241,7 +241,7 @@ class Anonymizer:
                     return f"{base_value}-{uuid.uuid4()}"
             logger.error(f"Faker method {method_name} not found")
             exit(1)
-        
+
         if faker_type[0] == "custom":
             if not custom_data_types:
                 logger.error("custom data used, but custom_data_types not found")
@@ -289,7 +289,7 @@ class Anonymizer:
         # Check the column type before fetching values
         column_type_stmt = text(f"SELECT data_type FROM information_schema.columns WHERE table_schema = '{schema_name}' AND table_name = '{table_name}' AND column_name = '{column_name}'")
         column_type_result = session.execute(column_type_stmt).fetchone()
-        
+
         if column_type_result and column_type_result[0] in ['character varying', 'text']:  # Include 'text' type
             select_stmt = text(f"SELECT DISTINCT {column_name} FROM {schema_name}.{table_name}")
             result = session.execute(select_stmt)
@@ -378,7 +378,7 @@ class Anonymizer:
                                                 fake_data = self.generate_fake_data(anonymize_data)
                                                 if "unique" in anonymize_data and anonymize_data["unique"]:
                                                     attempts = 0
-                                                    max_attempts = 10  # Set a limit for attempts
+                                                    max_attempts = 100  # Set a limit for attempts
                                                     while fake_data in all_fake_data[column_fake_data] and attempts < max_attempts:
                                                         fake_data = self.generate_fake_data(anonymize_data)
                                                         attempts += 1
