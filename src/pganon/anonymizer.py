@@ -340,8 +340,8 @@ class Anonymizer:
                                     if "foreign_key" in anonymize_data and anonymize_data["foreign_key"]:
                                         logger.info(f"column identified as a foreign_key in anonymize_data for {schema_name}.{table_name}.{column_name}, skipping column...")
                                         continue
-                                    count_stmt = text(f"SELECT COUNT(*) FROM {schema_name}.{table_name}")
-                                    total_updates = session.execute(count_stmt).scalar()  # Get total count of records
+                                    count_stmt = text(f"SELECT COUNT(*) FROM {schema_name}.{table_name} WHERE {column_name} IS NOT NULL")
+                                    total_updates = session.execute(count_stmt).scalar()  # Get total count of records matching criteria
                                     total_batches = math.ceil(total_updates / self.db_max_record_batch)
                                     # it is expensive to index all the existing values, so we only do it if unique is true
                                     if "unique" in anonymize_data and anonymize_data["unique"] and anonymize_data["type"] != "json":
