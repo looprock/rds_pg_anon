@@ -380,7 +380,10 @@ class Anonymizer:
                                                     attempts = 0
                                                     max_attempts = 100  # Set a limit for attempts
                                                     while fake_data in all_fake_data[column_fake_data] and attempts < max_attempts:
+                                                        prefix = uuid.uuid4().hex[:8]
                                                         fake_data = self.generate_fake_data(anonymize_data)
+                                                        if anonymize_data["type"] == "faker.email":
+                                                            fake_data = f"{prefix}-{fake_data}"
                                                         attempts += 1
 
                                                     if attempts == max_attempts:
