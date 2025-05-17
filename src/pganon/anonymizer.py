@@ -62,6 +62,27 @@ class Anonymizer:
             sys.exit(1)
         return data
 
+    def _decycle(self, obj, seen=None):
+        """
+        Return a copy of *obj* with circular references replaced by None.
+        This prevents json.dumps from raising 'Circular reference detected'.
+        """
+        if seen is None:
+            seen = set()
+        obj_id = id(obj)
+        if obj_id in seen:
+            return None
+        seen.add(obj_id)
+        if isinstance(obj, dict):
+            return {k: self._decycle(v, seen) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [self._decycle(v, seen) for v in obj]
+        if isinstance(obj, tuple):
+            return tuple(self._decycle(v, seen) for v in obj)
+        if isinstance(obj, set):
+            return [self._decycle(v, seen) for v in obj]  # sets aren't JSON serialisable
+        return obj
+
     def replace_all_in_dict(self, anonymize_data: dict, data: dict, search_string: str, new_value: str, exclude_from_all_keys: list = []) -> dict:
         ks = data | grep(search_string)
         logger.debug("exclude_from_all_keys:")
@@ -371,7 +392,8 @@ class Anonymizer:
                                                 original_fake_data = fake_data
                                             # Serialize fake_data if it's a dictionary or list
                                             if isinstance(fake_data, (dict, list)):
-                                                fake_data = json.dumps(fake_data, default=default_serializer)
+                                                fake_data_clean = self._decycle(fake_data)
+                                                fake_data = json.dumps(fake_data_clean, default=default_serializer)
                                             # Collect updates in a list
                                             if self.debug:
                                                 print(f"{schema_name}.{table_name}.{column_name} id: {row.id} fake_data (type: {str(type(fake_data))}): {fake_data}")
