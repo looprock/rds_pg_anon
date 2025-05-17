@@ -9,6 +9,7 @@ import sys
 import math
 from faker.exceptions import UniquenessException
 import uuid
+import copy
 from deepdiff.search import grep
 from .serializer import default_serializer
 from .state_utils import StateUtils
@@ -143,6 +144,7 @@ class Anonymizer:
         return True
 
     def json_fake_data(self, data: dict, anonymize_data: dict) -> dict:
+        data = copy.deepcopy(data)
         json_data = anonymize_data["json"]
         logger.debug("starting data:")
         logger.debug(data)
