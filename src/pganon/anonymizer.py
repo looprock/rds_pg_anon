@@ -7,6 +7,8 @@ import re
 import os
 import sys
 import math
+from faker.exceptions import UniquenessException
+import uuid
 from deepdiff.search import grep
 from .serializer import default_serializer
 from .state_utils import StateUtils
@@ -188,18 +190,34 @@ class Anonymizer:
         if faker_type[0] == "faker":
             faker_config = {}
             method_name = faker_type[1]
-            faker_method = getattr(fake, method_name)
-            if method_name in self.defaults["faker"]:
+            want_unique = anonymize_data.get("unique", False)
+            faker_root = fake.unique if want_unique else fake
+            faker_method = getattr(faker_root, method_name, None)
+
+            if method_name in self.defaults.get("faker", {}):
                 logger.debug(f"found faker method {method_name} in defaults")
                 faker_config = self.defaults["faker"].get(method_name, {})
+
             if faker_method:
-                if faker_config:
-                    return faker_method(**faker_config)
-                else:
-                    return faker_method()
-            else:
-                logger.error(f"Faker method {method_name} not found")
-                exit(1)
+                try:
+                    return (
+                        faker_method(**faker_config)
+                        if faker_config
+                        else faker_method()
+                    )
+                except UniquenessException:
+                    # Faker's unique pool exhausted – fall back to guaranteed-unique value
+                    logger.debug(
+                        f"Faker unique pool exhausted for {method_name}, generating fallback value"
+                    )
+                    base_value = (
+                        getattr(fake, method_name)(**faker_config)
+                        if faker_config
+                        else getattr(fake, method_name)()
+                    )
+                    return f"{base_value}-{uuid.uuid4()}"
+            logger.error(f"Faker method {method_name} not found")
+            exit(1)
         
         if faker_type[0] == "custom":
             if not custom_data_types:
