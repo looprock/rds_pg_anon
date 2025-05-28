@@ -226,37 +226,64 @@ class PgRdsUtils:
             return False
 
     def create_new_db_owner(self, user_name: str = None, db_passwd: str = None) -> dict:
-        """Create an admin user."""
+        """Rename the existing admin user instead of creating a new one to preserve all permissions."""
+        # Get the current user from PGUSER environment variable
+        current_user = os.getenv("PGUSER")
+        if not current_user:
+            logger.error("PGUSER environment variable must be set to rename the existing user")
+            return {}
+
+        # Generate new username if not provided
         if not user_name:
             user_name_suffix = ''.join(random.choices(string.ascii_letters + string.digits, k=5))
             user_name = f"pganon_{user_name_suffix}".lower()
         if not db_passwd:
             db_passwd = self.random_pass()
+
         with retry_utils.get_session_with_retries(self.Session()) as session:
-            if not self.create_db_user(user_name, session, db_passwd):
-                sys.exit(1)
             try:
+                # Check if current user exists
+                user_exists_query = text("SELECT 1 FROM pg_roles WHERE rolname = :user_name")
+                result = session.execute(user_exists_query, {"user_name": current_user}).fetchone()
+                if not result:
+                    logger.error(f"Current user {current_user} does not exist")
+                    return {}
+
+                # Check if new user name already exists
+                new_user_exists = session.execute(user_exists_query, {"user_name": user_name}).fetchone()
+                if new_user_exists:
+                    logger.error(f"Target user name {user_name} already exists")
+                    return {}
+
+                # Rename the existing user (this preserves all permissions, role memberships, and ownerships)
+                rename_query = text(f"ALTER ROLE {current_user} RENAME TO {user_name}")
+                session.execute(rename_query)
+                logger.info(f"Renamed user {current_user} to {user_name}")
+
+                # Update password
+                password_query = text(f"ALTER ROLE {user_name} WITH PASSWORD '{db_passwd}'")
+                session.execute(password_query)
+                logger.info(f"Updated password for user {user_name}")
+
+                # Get host and database info
                 current_db_query = text("SELECT current_database()")
                 db_name = session.execute(current_db_query).scalar()
                 current_host_query = text("SELECT inet_server_addr() AS server_ip, inet_server_port() AS server_port;")
                 host_result = session.execute(current_host_query)
                 for row in host_result:
                     host_info = row
-                # logger.debug(f"hostinfo: {row}")
-                db_permissions = self.create_db_admin_permissions(user_name, db_name)
-                logger.debug(f"granting db permissions for {db_name} to {user_name}")
-                for db_permission in db_permissions:
-                    logger.debug(f"executing db permission: {db_permission}")
-                    tmp_db_query = text(db_permission)
-                    session.execute(tmp_db_query)
-                for schema_name in self.list_schemas(session):
-                    logger.debug(f"granting schema permissions for {db_name}.{schema_name} to {user_name}")
-                    schema_permissions = self.create_schema_admin_permissions(user_name, schema_name)
-                    for schema_permission in schema_permissions:
-                        tmp_schema_query = text(schema_permission)
-                        session.execute(tmp_schema_query)
+
                 session.commit()
+                logger.info(f"Successfully renamed user {current_user} to {user_name} - all permissions and ownerships preserved")
+
+                return {
+                    "host_info": host_info[0],
+                    "db_name": db_name,
+                    "db_user": user_name,
+                    "db_passwd": db_passwd
+                }
+
             except Exception as e:
-                logger.error(f"Error creating new db owner {user_name}: {e}")
-                return False
-        return {"host_info": host_info[0], "db_name": db_name, "db_user": user_name, "db_passwd": db_passwd}
+                logger.error(f"Error renaming user {current_user} to {user_name}: {e}")
+                session.rollback()
+                return {}
