@@ -42,9 +42,7 @@ See `example_docker_run.sh` for a more thorough example.
 
 ## Required environment variables
 
-- PGDATABASE: source database
 - PGPASSWORD: source database instance password
-- PGPORT: source database instance port
 - PGUSER: source database instance user
 - PGANON_ENVIRONMENT: A unique environment reference you can use to find resources created by pg_anon
 - PGANON_RDS_SOURCE_ID: AWS instance ID of source database instance
@@ -52,6 +50,8 @@ See `example_docker_run.sh` for a more thorough example.
 
 ### Optional environment variables
 
+- PGDATABASE: source database, defaults: 'postgres'
+- PGPORT: source database instance port, default: '5432'
 - PGANON_CREDS_SECRET: a secret to write credentials information. (Default: /infra/[PGANON_ENVIRONMENT]/rds/pg-anon/credentials)
 - PGANON_DATA_DIR: data directory to write output files to (Default: "./data")
 - PGANON_DEBUG: turn on debug logging

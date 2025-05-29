@@ -117,8 +117,8 @@ def main(**kwargs) -> None:
     # Retrieve environment variables using standard psql names
     db_user = os.getenv("PGUSER")
     db_password = os.getenv("PGPASSWORD")
-    db_port = os.getenv("PGPORT")
-    db_name = os.getenv("PGDATABASE")
+    db_port = os.getenv("PGPORT", "5432")
+    db_name = os.getenv("PGDATABASE", "postgres")
     rds_source_id = os.getenv("PGANON_RDS_SOURCE_ID")
     s3_bucket_name = os.getenv("PGANON_S3_BUCKET_NAME")
     pganon_environment = os.getenv("PGANON_ENVIRONMENT")
@@ -163,6 +163,8 @@ def main(**kwargs) -> None:
         logger.error("PGANON_ENVIRONMENT must be set to create a snapshot")
         exit(1)
 
+    target_account_id = os.getenv("PGANON_TARGET_ACCOUNT_ID")
+
     snapshot_id = f"pganon-{os.getenv('PGANON_ENVIRONMENT')}"
 
     # if we are setting a secret profile, assume we need to write a secret
@@ -172,21 +174,6 @@ def main(**kwargs) -> None:
     if secret_profile:
         secret_profile_message = f"Using AWS profile {secret_profile} to write secret"
         write_secret = True
-
-    if write_secret:
-        if not os.getenv("PGANON_CREDS_SECRET") and not os.getenv("PGANON_ENVIRONMENT"):
-            logger.error(
-                "PGANON_CREDS_SECRET or PGANON_ENVIRONMENT must be set to create a snapshot"
-            )
-            exit(1)
-        aws_secret_name = (
-            f"/infra/{os.getenv('PGANON_ENVIRONMENT')}/rds/pg-anon/credentials"
-        )
-
-        if os.getenv("PGANON_CREDS_SECRET"):
-            aws_secret_name = os.getenv("PGANON_CREDS_SECRET")
-
-        logger.info(f"{secret_profile_message}: {aws_secret_name}")
 
     # don't delete the local state file local-state is set
     if local_state:
@@ -221,6 +208,25 @@ def main(**kwargs) -> None:
     except Exception as e:
         logger.error(f"Failed to get the host of the source instance: {e}")
         exit(1)
+
+    if write_secret:
+        if not os.getenv("PGANON_CREDS_SECRET") and not os.getenv("PGANON_ENVIRONMENT"):
+            logger.error(
+                "PGANON_CREDS_SECRET or PGANON_ENVIRONMENT must be set to create a snapshot"
+            )
+            exit(1)
+
+        # set a default value for the secret name
+        aws_secret_name = f"/infra/{os.getenv('PGANON_ENVIRONMENT')}/rds/pg-anon/credentials"
+
+        # if the user has set a specific target account id, use that
+        if target_account_id:
+            aws_secret_name = f"arn:aws:secretsmanager:{target_region_name}:{target_account_id}:secret:/infra/{os.getenv('PGANON_ENVIRONMENT')}/rds/pg-anon/credentials"
+
+        # if the user has set a specific secret name, use that
+        if os.getenv("PGANON_CREDS_SECRET"):
+            aws_secret_name = os.getenv("PGANON_CREDS_SECRET")
+
     # get the host of the replica
     logger.info(f"processing host: {source_host}")
 
@@ -361,6 +367,9 @@ def main(**kwargs) -> None:
                     logger.info(
                         f"Snapshot {snapshot_id} created and instance {tmp_rds_instance['id']} deleted."
                     )
+                    # Share the snapshot with target account if specified
+                    if target_account_id:
+                        aws_utils.share_snapshot_with_account(snapshot_id, target_account_id)
                     del tmp_rds_instance["port"]
                     del tmp_rds_instance["endpoint"]
                     tmp_rds_instance["source_instance_id"] = tmp_rds_instance["id"]

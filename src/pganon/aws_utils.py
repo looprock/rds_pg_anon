@@ -341,3 +341,23 @@ class AWSUtils:
                 waiter.config.delay = self.waiter_delay
                 waiter.wait(DBSnapshotIdentifier=snapshot_id)
                 logger.info(f"Deleted existing snapshot {snapshot_id} before creating a new one.")
+
+    def share_snapshot_with_account(self, snapshot_id: str, target_account_id: str) -> None:
+        """Share an RDS snapshot with another AWS account."""
+        rds_client = boto3.client('rds')
+
+        try:
+            logger.info(f"Sharing snapshot {snapshot_id} with account {target_account_id}.")
+
+            # Modify the snapshot attribute to share it with the target account
+            rds_client.modify_db_snapshot_attribute(
+                DBSnapshotIdentifier=snapshot_id,
+                AttributeName='restore',
+                ValuesToAdd=[target_account_id]
+            )
+
+            logger.info(f"Successfully shared snapshot {snapshot_id} with account {target_account_id}.")
+
+        except ClientError as e:
+            logger.error(f"Failed to share snapshot {snapshot_id} with account {target_account_id}: {e}")
+            # Don't exit here as the snapshot was created successfully, sharing is just an additional step
