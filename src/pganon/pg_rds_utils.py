@@ -226,19 +226,20 @@ class PgRdsUtils:
             return False
 
     def create_new_db_owner(self, user_name: str = None, db_passwd: str = None) -> dict:
-        """Rename the existing admin user instead of creating a new one to preserve all permissions."""
+        """Update the password of the existing admin user to preserve all permissions."""
         # Get the current user from PGUSER environment variable
         current_user = os.getenv("PGUSER")
         if not current_user:
-            logger.error("PGUSER environment variable must be set to rename the existing user")
+            logger.error("PGUSER environment variable must be set to update the existing user")
             return {}
 
-        # Generate new username if not provided
-        if not user_name:
-            user_name_suffix = ''.join(random.choices(string.ascii_letters + string.digits, k=5))
-            user_name = f"pganon_{user_name_suffix}".lower()
+        # Generate new password if not provided
         if not db_passwd:
             db_passwd = self.random_pass()
+
+        # If user_name is provided, log a warning but use the current user anyway
+        if user_name and user_name != current_user:
+            logger.warning(f"Ignoring provided username '{user_name}' - will update password for current user '{current_user}' instead")
 
         with retry_utils.get_session_with_retries(self.Session()) as session:
             try:
@@ -249,21 +250,10 @@ class PgRdsUtils:
                     logger.error(f"Current user {current_user} does not exist")
                     return {}
 
-                # Check if new user name already exists
-                new_user_exists = session.execute(user_exists_query, {"user_name": user_name}).fetchone()
-                if new_user_exists:
-                    logger.error(f"Target user name {user_name} already exists")
-                    return {}
-
-                # Rename the existing user (this preserves all permissions, role memberships, and ownerships)
-                rename_query = text(f"ALTER ROLE {current_user} RENAME TO {user_name}")
-                session.execute(rename_query)
-                logger.info(f"Renamed user {current_user} to {user_name}")
-
-                # Update password
-                password_query = text(f"ALTER ROLE {user_name} WITH PASSWORD '{db_passwd}'")
+                # Update password for the current user
+                password_query = text(f"ALTER ROLE {current_user} WITH PASSWORD '{db_passwd}'")
                 session.execute(password_query)
-                logger.info(f"Updated password for user {user_name}")
+                logger.info(f"Updated password for user {current_user}")
 
                 # Get host and database info
                 current_db_query = text("SELECT current_database()")
@@ -274,16 +264,16 @@ class PgRdsUtils:
                     host_info = row
 
                 session.commit()
-                logger.info(f"Successfully renamed user {current_user} to {user_name} - all permissions and ownerships preserved")
+                logger.info(f"Successfully updated password for user {current_user} - all permissions and ownerships preserved")
 
                 return {
                     "host_info": host_info[0],
                     "db_name": db_name,
-                    "db_user": user_name,
+                    "db_user": current_user,  # Return the current user, not a new name
                     "db_passwd": db_passwd
                 }
 
             except Exception as e:
-                logger.error(f"Error renaming user {current_user} to {user_name}: {e}")
+                logger.error(f"Error updating password for user {current_user}: {e}")
                 session.rollback()
                 return {}

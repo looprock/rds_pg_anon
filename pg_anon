@@ -23,14 +23,7 @@ if os.getenv("PGANON_LOG_DIR"):
 else:
     log_dir = os.path.join(current_dir, "logs")
 
-if not os.getenv("PGANON_ENVIRONMENT"):
-    logger.error("PGANON_ENVIRONMENT must be set")
-    exit(1)
-
-
 os.environ["PGANON_LOG_PATH"] = log_dir
-log_filename = f"{os.getenv("PGANON_ENVIRONMENT")}-{datetime.now():%Y-%m-%d_%H-%M}.log"
-os.environ["PGANON_LOG_FILE"] = log_filename
 
 from src.pganon.anonymizer import Anonymizer  # noqa: E402
 from src.pganon.loglib import setup_logging, logger  # noqa: E402
@@ -39,15 +32,22 @@ from src.pganon.pg_rds_utils import PgRdsUtils  # noqa: E402
 from src.pganon.state_utils import StateUtils  # noqa: E402
 from src.pganon.serializer import default_serializer  # noqa: E402
 
+if not os.getenv("PGANON_ENVIRONMENT"):
+    logger.error("PGANON_ENVIRONMENT must be set")
+    exit(1)
+
+log_filename = f"{os.getenv("PGANON_ENVIRONMENT")}-{datetime.now():%Y-%m-%d_%H-%M}.log"
+os.environ["PGANON_LOG_FILE"] = log_filename
+
 aws_utils = AWSUtils()
 
 @click.command()
-@click.option("--create-admin", is_flag=True, help="Create a new admin user.")
-@click.option("--create-admin-user", type=str, help="Create a specific new admin user.")
 @click.option(
     "--create-admin-password",
     type=str,
-    help="Use a specific new admin user password: requires --create-admin-user.",
+    flag_value="",  # Empty string when used as flag without value
+    default=None,
+    help="Update the password of the existing database user. If a password is provided, it will be used; otherwise a random password will be generated.",
 )
 @click.option(
     "--download",
@@ -97,8 +97,6 @@ aws_utils = AWSUtils()
 )
 def main(**kwargs) -> None:
     setup_logging()
-    create_admin = kwargs.get("create_admin")
-    create_admin_user = kwargs.get("create_admin_user")
     create_admin_password = kwargs.get("create_admin_password")
     download = kwargs.get("download")
     dry_run = kwargs.get("dry_run")
@@ -112,10 +110,6 @@ def main(**kwargs) -> None:
     verbose = kwargs.get("verbose")
     write_secret = kwargs.get("write_secret")
     secret_profile = kwargs.get("secret_profile")
-    if create_admin_password:
-        if not create_admin_user:
-            logger.error("create_admin_user is required when create_admin_password is set")
-            exit(1)
 
     if dry_run and snapshot:
         logger.error("--snapshot and --dry-run cannot be used together since they can create a snapshot with original data!")
@@ -348,19 +342,14 @@ def main(**kwargs) -> None:
                 tmp_rds_instance["date"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 logger.info("Anonymization completed successfully.")
                 target_engine.execute_patch_sql(source_host, stage="post")
-                if create_admin:
-                    new_db_owner = target_engine.create_new_db_owner()
-                    logger.info(f"Created new db owner: {new_db_owner}")
-                elif create_admin_user:
-                    if create_admin_password:
-                        new_db_owner = target_engine.create_new_db_owner(
-                            create_admin_user, create_admin_password
-                        )
-                    else:
-                        new_db_owner = target_engine.create_new_db_owner(
-                            create_admin_user
-                        )
-                    logger.info(f"Created new db owner: {new_db_owner}")
+                if create_admin_password is not None:
+                    # If create_admin_password is empty string (flag without value), pass None to generate random password
+                    # If it has a value, use that password
+                    password_to_use = create_admin_password if create_admin_password else None
+                    new_db_owner = target_engine.create_new_db_owner(
+                        user_name=None, db_passwd=password_to_use
+                    )
+                    logger.info(f"Updated admin user password: {new_db_owner}")
                 if new_db_owner:
                     tmp_rds_instance["username"] = new_db_owner["db_user"]
                     tmp_rds_instance["password"] = new_db_owner["db_passwd"]

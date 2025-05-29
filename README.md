@@ -88,9 +88,7 @@ You can use the **all uppercase** name of the options [here](https://boto3.amazo
 
 ```
 Options:
-  --create-admin                Create a new admin user.
-  --create-admin-user TEXT      Create a specific new admin user.
-  --create-admin-password TEXT  Use a specific new admin user password: requires --create-admin-user.
+  --create-admin-password TEXT  Update the password of the existing database user. If a password is provided, it will be used; otherwise a random password will be generated.
   --download                    Download the file from S3 to the expected output name without processing.
   --dry-run                     Don't actually modify the database instance, just output the state changes.
   --initialize                  Initialize the file if it does not exist.
@@ -104,6 +102,20 @@ Options:
   --verbose                     print verbose output
   --write-secret                Create a secret in AWS Secrets Manager. If PGANON_CREDS_SECRET is set, that will be used as the secret name, otherwise the secret name will be written to: 'infra/[value of PGANON_ENVIRONMENT]/rds/pg-anon/credentials'
   --help                        Show this message and exit.
+```
+
+**Note:** The `--create-admin-password` option updates the password of the existing database user (from `PGUSER` environment variable) instead of creating a new user. This preserves all permissions, role memberships, and object ownerships.
+
+**Example usage:**
+```bash
+# Update user password to a random value
+./pg_anon --create-admin-password
+
+# Update user password to a specific value
+./pg_anon --create-admin-password "my_secure_password"
+
+# Full example with snapshot creation
+./pg_anon --create-admin-password "secure_pass" --snapshot --savedb --overwrite
 ```
 
 # Outputs
