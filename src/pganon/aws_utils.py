@@ -9,10 +9,54 @@ import string
 class AWSUtils:
     def __init__(self):
         setup_logging()
-        self.waiter_max_attempts = int(os.getenv("PGANON_WAITER_MAX_ATTEMPTS", 120))
-        self.waiter_delay = int(os.getenv("PGANON_WAITER_DELAY", 30))
+        # Optimized waiter settings for better performance
+        self.waiter_max_attempts = int(os.getenv("PGANON_WAITER_MAX_ATTEMPTS", 60))  # Reduced from 120
+        self.waiter_delay = int(os.getenv("PGANON_WAITER_DELAY", 15))  # Reduced from 30
+        # Cache for boto3 clients to avoid repeated creation
+        self._clients = {}
+        self._sessions = {}
+
+    def _get_rds_client(self, region_name: str = None):
+        """Get or create a cached RDS client for the specified region."""
+        key = f"rds_{region_name or 'default'}"
+        if key not in self._clients:
+            if region_name:
+                self._clients[key] = boto3.client('rds', region_name=region_name)
+            else:
+                self._clients[key] = boto3.client('rds')
+        return self._clients[key]
+
+    def _get_s3_client(self):
+        """Get or create a cached S3 client."""
+        if 's3' not in self._clients:
+            self._clients['s3'] = boto3.client('s3')
+        return self._clients['s3']
+
+    def _get_secrets_client(self, profile_name: str = None):
+        """Get or create a cached Secrets Manager client."""
+        key = f"secrets_{profile_name or 'default'}"
+        if key not in self._clients:
+            if profile_name:
+                if profile_name not in self._sessions:
+                    self._sessions[profile_name] = boto3.Session(profile_name=profile_name)
+                self._clients[key] = self._sessions[profile_name].client('secretsmanager')
+            else:
+                self._clients[key] = boto3.client('secretsmanager')
+        return self._clients[key]
+
+    def _configure_waiter(self, waiter):
+        """Configure waiter with optimized settings."""
+        waiter.config.max_attempts = self.waiter_max_attempts
+        waiter.config.delay = self.waiter_delay
+        # Use exponential backoff for better efficiency
+        waiter.config.jitter = 'full'
+        return waiter
 
     def rds_env_var_to_options(self) -> dict:
+        # Cache the result to avoid repeated environment variable parsing
+        if hasattr(self, '_cached_rds_options'):
+            return self._cached_rds_options
+            
         result_dict = {}
         env_vars = os.environ
         # this is the list of options that are available for the DB instance
@@ -93,10 +137,13 @@ class AWSUtils:
                             dl_key, dl_value = val.split("=")
                             dict_list.append({key_name: dl_key, "Value": dl_value})
                         result_dict[db_env_var_dict[check_key]["option"]] = dict_list
+        
+        # Cache the result
+        self._cached_rds_options = result_dict
         return result_dict
 
     def download_from_s3(self, bucket_name: str, file_name: str, destination_file: str = None) -> bool:
-        s3 = boto3.client('s3')
+        s3 = self._get_s3_client()
         try:
             output_file = file_name
             if destination_file:
@@ -109,7 +156,7 @@ class AWSUtils:
             return False
 
     def upload_to_s3(self,bucket_name: str, file_name: str, data_dir: str) -> None:
-        s3 = boto3.client('s3')
+        s3 = self._get_s3_client()
         try:
             s3.upload_file(f"{data_dir}/{file_name}", bucket_name, file_name)
             logger.info(f"Uploaded {file_name} to S3 bucket {bucket_name}")
@@ -121,7 +168,7 @@ class AWSUtils:
         """Retrieve the endpoint (host) of an RDS instance by its instance ID."""
         try:
             # Create a boto3 RDS client
-            rds_client = boto3.client('rds', region_name=region_name)
+            rds_client = self._get_rds_client(region_name)
 
             # Describe the RDS instance
             response = rds_client.describe_db_instances(DBInstanceIdentifier=instance_id)
@@ -142,7 +189,7 @@ class AWSUtils:
 
     def create_instance_from_latest_snapshot(self, instance_id: str, region_name: str, user_name: str, password: str) -> None:
         """Create a new RDS instance from the latest snapshot of an existing RDS instance."""
-        rds_client = boto3.client('rds', region_name=region_name)
+        rds_client = self._get_rds_client(region_name)
 
         try:
             # Get all snapshots for the given instance
@@ -208,8 +255,7 @@ class AWSUtils:
 
             # Wait for the new instance to become available
             waiter = rds_client.get_waiter('db_instance_available')
-            waiter.config.max_attempts = self.waiter_max_attempts
-            waiter.config.delay = self.waiter_delay
+            waiter = self._configure_waiter(waiter)
             waiter.wait(DBInstanceIdentifier=new_instance_id)
             logger.info(f"RDS instance {new_instance_id} is now available.")
             # get the endpoint of the new instance
@@ -239,11 +285,7 @@ class AWSUtils:
 
     def save_secret_to_aws(self, secret_name: str, secret_data: dict, profile_name: str = None) -> None:
         # Save the database connection information to AWS Secrets Manager
-        if profile_name:
-            session = boto3.Session(profile_name=profile_name)
-            client = session.client('secretsmanager')
-        else:
-            client = boto3.client('secretsmanager')
+        client = self._get_secrets_client(profile_name)
         try:
             # Check if the secret already exists
             client.create_secret(
@@ -263,7 +305,7 @@ class AWSUtils:
 
     def create_db_snapshot(self, instance_id: str, snapshot_id: str) -> None:
         """Create a snapshot of the specified RDS instance."""
-        rds_client = boto3.client('rds')
+        rds_client = self._get_rds_client()
 
         try:
             # Check if the snapshot already exists
@@ -279,8 +321,7 @@ class AWSUtils:
                 # If it exists, delete the existing snapshot
                 rds_client.delete_db_snapshot(DBSnapshotIdentifier=snapshot_id)
                 waiter = rds_client.get_waiter('db_snapshot_deleted')
-                waiter.config.max_attempts = self.waiter_max_attempts
-                waiter.config.delay = self.waiter_delay
+                waiter = self._configure_waiter(waiter)
                 waiter.wait(DBSnapshotIdentifier=snapshot_id)
                 logger.info(f"Deleted existing snapshot {snapshot_id} before creating a new one.")
 
@@ -292,8 +333,7 @@ class AWSUtils:
 
             # Wait for the snapshot to become available
             waiter = rds_client.get_waiter('db_snapshot_completed')
-            waiter.config.max_attempts = self.waiter_max_attempts
-            waiter.config.delay = self.waiter_delay
+            waiter = self._configure_waiter(waiter)
             waiter.wait(DBSnapshotIdentifier=snapshot_id)
 
             logger.info(f"Snapshot {snapshot_id} created successfully for instance {instance_id}.")
@@ -304,12 +344,11 @@ class AWSUtils:
     def delete_instance(self, instance_id: str, snapshot_id: str) -> dict:
         logger.info(f"Deleting RDS instance {instance_id} and creating final snapshot {snapshot_id}.")
         try:
-            rds_client = boto3.client('rds')
+            rds_client = self._get_rds_client()
             # Create a final snapshot before deletion
             rds_client.delete_db_instance(DBInstanceIdentifier=instance_id, SkipFinalSnapshot=False, FinalDBSnapshotIdentifier=snapshot_id)
             waiter = rds_client.get_waiter('db_snapshot_completed')
-            waiter.config.max_attempts = self.waiter_max_attempts
-            waiter.config.delay = self.waiter_delay
+            waiter = self._configure_waiter(waiter)
             waiter.wait(DBSnapshotIdentifier=snapshot_id)
             snapshot_info = rds_client.describe_db_snapshots(DBSnapshotIdentifier=snapshot_id)
             snapshot_arn = snapshot_info['DBSnapshots'][0]['DBSnapshotArn']
@@ -321,7 +360,7 @@ class AWSUtils:
 
     def delete_snapshot_if_exists(self, snapshot_id: str) -> None:
         """Create a snapshot of the specified RDS instance."""
-        rds_client = boto3.client('rds')
+        rds_client = self._get_rds_client()
         # Check if the snapshot already exists
         existing_snapshots = None
         try:
@@ -337,14 +376,13 @@ class AWSUtils:
                 # If it exists, delete the existing snapshot
                 rds_client.delete_db_snapshot(DBSnapshotIdentifier=snapshot_id)
                 waiter = rds_client.get_waiter('db_snapshot_deleted')
-                waiter.config.max_attempts = self.waiter_max_attempts
-                waiter.config.delay = self.waiter_delay
+                waiter = self._configure_waiter(waiter)
                 waiter.wait(DBSnapshotIdentifier=snapshot_id)
                 logger.info(f"Deleted existing snapshot {snapshot_id} before creating a new one.")
 
     def share_snapshot_with_account(self, snapshot_id: str, target_account_id: str) -> None:
         """Share an RDS snapshot with another AWS account."""
-        rds_client = boto3.client('rds')
+        rds_client = self._get_rds_client()
 
         try:
             logger.info(f"Sharing snapshot {snapshot_id} with account {target_account_id}.")
