@@ -196,14 +196,6 @@ def main(**kwargs) -> None:
         logger.error(f"Failed to get the host of the source instance: {e}")
         exit(1)
 
-    try:
-        target_host = aws_utils.get_rds_host_by_instance_id(
-            rds_target_id, target_region_name
-        )
-    except Exception as e:
-        logger.error(f"Failed to get the host of the target instance: {e}")
-        exit(1)
-
     if not write_secret:
         if os.getenv("PGANON_CROSS_ACCOUNT_ROLE_ARN") and os.getenv("PGANON_CROSS_ACCOUNT_EXTERNAL_ID"):
             write_secret = True
