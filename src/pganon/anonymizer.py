@@ -53,6 +53,8 @@ class Anonymizer:
         if self.dry_run:
             self.verbose = True
         self.db_max_record_batch = int(os.getenv("PGANON_DB_MAX_RECORD_BATCH", 10000))
+        self.use_chunked_processing = os.getenv("PGANON_USE_CHUNKED_PROCESSING", "false").lower() == "true"
+        self.chunk_size = int(os.getenv("PGANON_CHUNK_SIZE", 50000))
 
     def update_value(self, data, key, value):
         try:
@@ -293,7 +295,10 @@ class Anonymizer:
         if column_type_result and column_type_result[0] in ['character varying', 'text']:  # Include 'text' type
             select_stmt = text(f"SELECT DISTINCT {column_name} FROM {schema_name}.{table_name}")
             result = session.execute(select_stmt)
-            return [row[0] for row in result if isinstance(row[0], str)]
+            # Fetch all rows at once to avoid cursor timeout issues
+            all_rows = result.fetchall()
+            result.close()  # Explicitly close the result to free resources
+            return [row[0] for row in all_rows if isinstance(row[0], str)]
         else:
             logger.debug(f"Column {column_name} in {schema_name}.{table_name} is not a string type.")
             return []
@@ -357,10 +362,16 @@ class Anonymizer:
                                             logger.debug(f"hostinfo: {row}")
                                     select_stmt = text(f"SELECT id,{column_name} FROM {schema_name}.{table_name}")
                                     logger.debug(f"select_stmt: {select_stmt}")
+                                    
+                                    # Fetch all rows at once to avoid cursor timeout issues
+                                    logger.info(f"Fetching all {total_updates} records for processing {schema_name}.{table_name}.{column_name}")
                                     result = session.execute(select_stmt)
+                                    all_rows = result.fetchall()
+                                    result.close()  # Explicitly close the result to free resources
+                                    
                                     updates = []
                                     updates_count = 1
-                                    for row in result:
+                                    for row in all_rows:
                                         if row[1]:
                                             if self.verbose:
                                                 logger.info(f"*** Original data for {schema_name}.{table_name}.{column_name} id: {row.id}:")
