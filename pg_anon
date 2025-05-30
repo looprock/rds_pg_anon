@@ -193,7 +193,7 @@ def main(**kwargs) -> None:
     # Optional quick-exit path: just test secret creation/update
     # -----------------------------------------------------------------
     if test_secret:
-        dummy_secret_name = os.getenv("PGANON_TEST_SECRET_NAME", "/pganon/test/secret")
+        dummy_secret_name = os.getenv("PGANON_TEST_SECRET_NAME", "/infra/secrets-test/rds/pg-anon/credentials")
         dummy_secret_body = {"test": "secret_update"}
         aws_utils.save_secret_to_aws(
             dummy_secret_name,
