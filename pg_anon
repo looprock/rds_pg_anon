@@ -184,6 +184,11 @@ def main(**kwargs) -> None:
             )
             exit(1)
 
+    # determine target AWS region (env var takes priority, otherwise inherit the session's region)
+    target_region_name = os.getenv("PGANON_TARGET_AWS_REGION", None)
+    if not target_region_name:
+        target_region_name = session.region_name
+
     # -----------------------------------------------------------------
     # Optional quick-exit path: just test secret creation/update
     # -----------------------------------------------------------------
@@ -199,15 +204,7 @@ def main(**kwargs) -> None:
         logger.info(f"Test secret update completed for {dummy_secret_name}")
         exit(0)
 
-    target_region_name = os.getenv("PGANON_TARGET_AWS_REGION", None)
-    if not target_region_name:
-        try:
-            target_region_name = session.region_name
-        except Exception as e:
-            logger.error(
-                f"No AWS region found, Please configure the PGANON_TARGET_AWS_REGION environment variable. Error: {e}"
-            )
-            exit(1)
+
 
     try:
         source_host = aws_utils.get_rds_host_by_instance_id(
