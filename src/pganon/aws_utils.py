@@ -277,12 +277,12 @@ class AWSUtils:
 
             # For AWS Batch scenarios, assume a cross-account role
             external_id = os.getenv("PGANON_CROSS_ACCOUNT_EXTERNAL_ID")
-            role_arn = os.getenv("PGANON_CROSS_ACCOUNT_ROLE_ARN")
+            role_identifier = os.getenv("PGANON_CROSS_ACCOUNT_ROLE_ARN") or os.getenv("PGANON_CROSS_ACCOUNT_ROLE_NAME", "pg-anon-secrets-manager-role")
 
             try:
                 # Assume the cross-account role
                 assumed_credentials = self.assume_cross_account_role(
-                    target_account_id, role_arn, external_id
+                    target_account_id, role_identifier, external_id
                 )
 
                 # Create client with assumed role credentials
@@ -294,7 +294,7 @@ class AWSUtils:
                 logger.info(f"Successfully assumed role in account {target_account_id}")
 
             except Exception as e:
-                logger.error(f"Sharing account {target_account_id} referenced, but cross-account role assumption for writing secrets failed: {e}")
+                logger.error(f"Target account {target_account_id} referenced, but cross-account role assumption for writing secrets failed: {e}")
                 sys.exit(1)
                 # Fall back to default credentials if role assumption fails
                 # client = boto3.client('secretsmanager', region_name=target_region)
