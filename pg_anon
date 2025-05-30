@@ -75,11 +75,7 @@ aws_utils = AWSUtils()
 @click.option(
     "--savedb", is_flag=True, help="Save and re-use the database information."
 )
-@click.option(
-    "--secret-profile",
-    type=str,
-    help="Use a specific AWS profile for secret management. Setting this assumes --write-secret is true.",
-)
+
 @click.option(
     "--snapshot",
     is_flag=True,
@@ -108,7 +104,6 @@ def main(**kwargs) -> None:
     upload = kwargs.get("upload")
     verbose = kwargs.get("verbose")
     write_secret = kwargs.get("write_secret")
-    secret_profile = kwargs.get("secret_profile")
 
     if dry_run and snapshot:
         logger.error("--snapshot and --dry-run cannot be used together since they can create a snapshot with original data!")
@@ -167,14 +162,6 @@ def main(**kwargs) -> None:
 
     snapshot_id = f"pganon-{os.getenv('PGANON_ENVIRONMENT')}"
 
-    # if we are setting a secret profile, assume we need to write a secret
-    env_secret_profile = os.getenv("PGANON_SECRET_PROFILE")
-    secret_profile = secret_profile or env_secret_profile
-    secret_profile_message = f"Using the default boto3 AWS credentials to write secret"
-    if secret_profile:
-        secret_profile_message = f"Using AWS profile {secret_profile} to write secret"
-        write_secret = True
-
     # don't delete the local state file local-state is set
     if local_state:
         save_remote_state = True
@@ -209,6 +196,19 @@ def main(**kwargs) -> None:
         logger.error(f"Failed to get the host of the source instance: {e}")
         exit(1)
 
+    try:
+        target_host = aws_utils.get_rds_host_by_instance_id(
+            rds_target_id, target_region_name
+        )
+    except Exception as e:
+        logger.error(f"Failed to get the host of the target instance: {e}")
+        exit(1)
+
+    if not write_secret:
+        if os.getenv("PGANON_CROSS_ACCOUNT_ROLE_ARN") and os.getenv("PGANON_CROSS_ACCOUNT_EXTERNAL_ID"):
+            write_secret = True
+            logger.info("Auto-enabling write_secret due to environment variables set: PGANON_CROSS_ACCOUNT_ROLE_ARN, PGANON_CROSS_ACCOUNT_EXTERNAL_ID")
+
     if write_secret:
         if not os.getenv("PGANON_CREDS_SECRET") and not os.getenv("PGANON_ENVIRONMENT"):
             logger.error(
@@ -216,12 +216,12 @@ def main(**kwargs) -> None:
             )
             exit(1)
 
+        if target_account_id:
+            if not os.getenv("PGANON_CROSS_ACCOUNT_ROLE_ARN") or not os.getenv("PGANON_CROSS_ACCOUNT_EXTERNAL_ID"):
+                logger.warning(f"External Account {target_account_id} referenced, but PGANON_CROSS_ACCOUNT_ROLE_ARN and/or PGANON_CROSS_ACCOUNT_EXTERNAL_ID not set to write remote secret.")
+
         # set a default value for the secret name
         aws_secret_name = f"/infra/{os.getenv('PGANON_ENVIRONMENT')}/rds/pg-anon/credentials"
-
-        # if the user has set a specific target account id, use that
-        if target_account_id:
-            aws_secret_name = f"arn:aws:secretsmanager:{target_region_name}:{target_account_id}:secret:/infra/{os.getenv('PGANON_ENVIRONMENT')}/rds/pg-anon/credentials"
 
         # if the user has set a specific secret name, use that
         if os.getenv("PGANON_CREDS_SECRET"):
@@ -391,7 +391,7 @@ def main(**kwargs) -> None:
 
                 if aws_secret_name:
                     aws_utils.save_secret_to_aws(
-                        aws_secret_name, tmp_rds_instance, secret_profile
+                        aws_secret_name, tmp_rds_instance
                     )
             else:
                 logger.error("Anonymization failed.")

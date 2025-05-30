@@ -2,6 +2,7 @@ import os
 from .loglib import logger, setup_logging
 import boto3
 import json
+import sys
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
 import random
 import string
@@ -237,13 +238,72 @@ class AWSUtils:
         except ClientError as e:
             logger.error(f"Failed to create new RDS instance from snapshot: {e}")
 
-    def save_secret_to_aws(self, secret_name: str, secret_data: dict, profile_name: str = None) -> None:
+    def assume_cross_account_role(self, target_account_id: str, role_arn: str = None, external_id: str = None):
+        """
+        Assume a role in a target account for cross-account operations.
+        Designed for AWS Batch scenarios where the execution role needs to assume another role.
+        """
+        sts_client = boto3.client('sts')
+
+        assume_role_params = {
+            'RoleArn': role_arn,
+            'RoleSessionName': f'pg-anon-batch-{target_account_id}'
+        }
+
+        # Use external ID if provided for additional security
+        if external_id:
+            assume_role_params['ExternalId'] = external_id
+
+        try:
+            logger.info(f"Assuming cross-account role: {role_arn}")
+            response = sts_client.assume_role(**assume_role_params)
+
+            credentials = response['Credentials']
+            return {
+                'aws_access_key_id': credentials['AccessKeyId'],
+                'aws_secret_access_key': credentials['SecretAccessKey'],
+                'aws_session_token': credentials['SessionToken']
+            }
+        except Exception as e:
+            logger.error(f"Failed to assume role {role_arn}: {e}")
+            raise
+
+    def save_secret_to_aws(self, secret_name: str, secret_data: dict, target_account_id: str = None, target_region: str = None) -> None:
         # Save the database connection information to AWS Secrets Manager
-        if profile_name:
-            session = boto3.Session(profile_name=profile_name)
-            client = session.client('secretsmanager')
+        logger.info(f"Attempting to save secret with name: {secret_name}")
+
+        if target_account_id:
+            logger.info(f"Creating secret in target account: {target_account_id}")
+
+            # For AWS Batch scenarios, assume a cross-account role
+            external_id = os.getenv("PGANON_CROSS_ACCOUNT_EXTERNAL_ID")
+            role_arn = os.getenv("PGANON_CROSS_ACCOUNT_ROLE_ARN")
+
+            try:
+                # Assume the cross-account role
+                assumed_credentials = self.assume_cross_account_role(
+                    target_account_id, role_arn, external_id
+                )
+
+                # Create client with assumed role credentials
+                client = boto3.client(
+                    'secretsmanager',
+                    region_name=target_region or boto3.Session().region_name,
+                    **assumed_credentials
+                )
+                logger.info(f"Successfully assumed role in account {target_account_id}")
+
+            except Exception as e:
+                logger.error(f"Sharing account {target_account_id} referenced, but cross-account role assumption for writing secrets failed: {e}")
+                sys.exit(1)
+                # Fall back to default credentials if role assumption fails
+                # client = boto3.client('secretsmanager', region_name=target_region)
+                # logger.warning("Falling back to default AWS credentials")
         else:
-            client = boto3.client('secretsmanager')
+            # Same account operations
+            client = boto3.client('secretsmanager', region_name=target_region)
+            logger.debug("Using default AWS credentials")
+
         try:
             # Check if the secret already exists
             client.create_secret(
@@ -260,6 +320,10 @@ class AWSUtils:
             logger.info(f"Secret {secret_name} updated successfully.")
         except Exception as e:
             logger.error(f"Failed to save secret {secret_name}: {e}")
+            logger.debug(f"Secret name being used: '{secret_name}' (length: {len(secret_name)})")
+            if target_account_id:
+                logger.error(f"Cross-account secret creation failed. Ensure proper IAM roles are configured for account {target_account_id}")
+            raise
 
     def create_db_snapshot(self, instance_id: str, snapshot_id: str) -> None:
         """Create a snapshot of the specified RDS instance."""

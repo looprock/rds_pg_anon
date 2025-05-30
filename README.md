@@ -24,7 +24,7 @@ To install then environment and all it's dependencies, install [uv](https://docs
 
 You should now be able to, either:
 - source the environment using: `. ./.venv/bin/activate` then running `./pg_anon [arguments]`
-- use: `uv run ./pg_anon [arguments]` 
+- use: `uv run ./pg_anon [arguments]`
 
 ### Container
 
@@ -53,17 +53,9 @@ See `example_docker_run.sh` for a more thorough example.
 - PGDATABASE: source database, defaults: 'postgres'
 - PGPORT: source database instance port, default: '5432'
 - PGANON_CREDS_SECRET: a secret to write credentials information. (Default: /infra/[PGANON_ENVIRONMENT]/rds/pg-anon/credentials)
-- PGANON_DATA_DIR: data directory to write output files to (Default: "./data")
-- PGANON_DEBUG: turn on debug logging
-- PGANON_DB_BACKOFF_TIME: set the backoff start point in seconds, will double every attempt (Default: 1)
-- PGANON_DB_MAX_RECORD_BATCH: set the maximum number of records in a batch update (Default: 10000)
-- PGANON_DB_RETRIES: set the number a times a database reconnection is attempted (Default: 10)
-- PGANON_DB_TIMEOUT: set the database connection timeout (Default: 30)
-- PGANON_DISABLE_LOCAL_LOGGING: don't log to local log files
-- PGANON_EXTEND_DIR: extend config directory (Default: ./extend)
-- PGANON_LOG_DIR: location to log to (Default: ./logs)
+- PGANON_CROSS_ACCOUNT_ROLE_ARN: AWS role ARN to assume when writing remote secret. Setting this assumes --write-secret is true if PGANON_CROSS_ACCOUNT_EXTERNAL_ID also set.
+- PGANON_CROSS_ACCOUNT_EXTERNAL_ID: AWS external ID to use when writing remote secret. Setting this assumes --write-secret is true if PGANON_CROSS_ACCOUNT_ROLE_ARN also set.
 - PGANON_SAVE_DB: same as --savedb, This is primarily for testing and will cache the test database information and allow you run pganon against the same instance repeatedly.
-- PGANON_SECRET_PROFILE: AWS profile to use to write secret. Setting this assumes --write-secret is true
 - PGANON_SOURCE_AWS_REGION - the AWS region is identified via the boto session, but if that fails, or you wish to overwrite this, you can use this variable.
 - PGANON_TARGET_AWS_REGION - the AWS region is identified via the boto session, but if that fails, or you wish to overwrite this, you can use this variable.
 - PGANON_WAITER_DELAY: boto3 waiter delay between attempts (Default: 30)
@@ -300,7 +292,7 @@ Aside from the faker methods, pganon supports these types:
 
 **datetime**: provides faker output: fake.date_time().isoformat()
 
-**custom**: this will return the literal value for a custom data type. 
+**custom**: this will return the literal value for a custom data type.
 
 **json**: anonymizes parts of a JSON object. See the example 'Anonymize a JSON column' below
 
@@ -386,6 +378,58 @@ JSON blocks also support these global options:
     }
 }
 ```
+
+# Remote secret management
+
+To be able to manage secrets in a remote account, you need to set the environment variables: PGANON_CROSS_ACCOUNT_ROLE_ARN, PGANON_CROSS_ACCOUNT_EXTERNAL_ID. You also need to create a role on the remote account similar to the following:
+
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::SOURCE_ACCOUNT_ID:role/pg-anon-batch-execution-role"
+      },
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": {
+          "sts:ExternalId": "pg-anon-unique-external-id"
+        }
+      }
+    }
+  ]
+}
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:CreateSecret",
+        "secretsmanager:UpdateSecret",
+        "secretsmanager:DescribeSecret"
+      ],
+      "Resource": [
+        "arn:aws:secretsmanager:*:TARGET_ACCOUNT_ID:secret:/infra/*/rds/pg-anon/credentials*"
+      ]
+    }
+  ]
+}
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::TARGET_ACCOUNT_ID:role/pg-anon-secrets-manager-role"
+    }
+  ]
+}
+````
 
 # Thanks
 
