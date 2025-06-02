@@ -119,6 +119,13 @@ def main(**kwargs) -> None:
     write_secret = kwargs.get("write_secret")
     test_errors = kwargs.get("test_errors")
 
+    if not test_errors:
+        if os.environ.get("PGANON_TEST_ERRORS"):
+            test_errors = True
+
+    if test_errors:
+        logger.info("test_errors is enabled...")
+
     if dry_run and snapshot:
         logger.error("--snapshot and --dry-run cannot be used together since they can create a snapshot with original data!")
         exit(1)
@@ -239,6 +246,7 @@ def main(**kwargs) -> None:
         if not os.getenv("PGANON_CROSS_ACCOUNT_ROLE_ARN") or not os.getenv("PGANON_CROSS_ACCOUNT_EXTERNAL_ID"):
             logger.warning(f"External Account {target_account_id} referenced, but PGANON_CROSS_ACCOUNT_ROLE_ARN and/or PGANON_CROSS_ACCOUNT_EXTERNAL_ID not set to write remote secret.")
 
+    aws_secret_name = None
     if write_secret:
         # set a default value for the secret name
         aws_secret_name = f"/infra/{os.getenv('PGANON_ENVIRONMENT')}/rds/pg-anon/credentials"
@@ -250,8 +258,9 @@ def main(**kwargs) -> None:
             logger.info(f"Using custom secret name: {aws_secret_name}")
     else:
         # if write_secret is False, set aws_secret_name to None
-        aws_secret_name = None
         logger.info("write_secret is False, aws_secret_name set to None")
+
+    logger.info(f"aws_secret_name set to: {aws_secret_name}")
 
     # get the host of the replica
     logger.info(f"processing host: {source_host}")
