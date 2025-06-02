@@ -91,6 +91,13 @@ aws_utils = AWSUtils()
     is_flag=True,
     help="Test writing/updating a secret in AWS Secrets Manager with dummy data and exit.",
 )
+
+@click.option(
+    "--test-errors",
+    is_flag=True,
+    help="Trigger a test of sns error publishing.",
+)
+
 @click.option("--verbose", is_flag=True, help="print verbose output")
 @click.option(
     "--write-secret", type=str, help="Create a secret in AWS Secrets Manager."
@@ -110,6 +117,7 @@ def main(**kwargs) -> None:
     test_secret = kwargs.get("test_secret")
     verbose = kwargs.get("verbose")
     write_secret = kwargs.get("write_secret")
+    test_errors = kwargs.get("test_errors")
 
     if dry_run and snapshot:
         logger.error("--snapshot and --dry-run cannot be used together since they can create a snapshot with original data!")
@@ -204,7 +212,12 @@ def main(**kwargs) -> None:
         logger.info(f"Test secret update completed for {dummy_secret_name}")
         exit(0)
 
-
+    if test_errors:
+        boto3.client('sns').publish(TopicArn=os.environ['SNS_TOPIC_ARN'],
+                    Message='error testing',
+                    Subject='pg-anon batch failed')
+        logger.info("Test script failure.")
+        exit(1)
 
     try:
         source_host = aws_utils.get_rds_host_by_instance_id(
