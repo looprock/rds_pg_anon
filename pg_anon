@@ -151,14 +151,18 @@ def main(**kwargs) -> None:
     # this should trigger if:
     # 1) --create-admin-password is not used but PGANON_CREATE_ADMIN_PASSWORD is
     # 2) --create-admin-password is used with no argument (empty string value)
-    if not create_admin_password:
+    if create_admin_password:
+        logger.info("Admin password set using --create-admin-password")
+    else:
         if os.getenv("PGANON_CREATE_ADMIN_PASSWORD"):
             # if PGANON_CREATE_ADMIN_PASSWORD is true, create a random password
             if os.getenv("PGANON_CREATE_ADMIN_PASSWORD") == "true":
                 create_admin_password = random_pass()
+                logger.info("Admin password randomly set using PGANON_CREATE_ADMIN_PASSWORD")
             else:
                 # if PGANON_CREATE_ADMIN_PASSWORD is set to a value, use that value
                 create_admin_password = os.getenv("PGANON_CREATE_ADMIN_PASSWORD")
+                logger.info("Admin password manually set using PGANON_CREATE_ADMIN_PASSWORD")
 
     if not all(
         [
