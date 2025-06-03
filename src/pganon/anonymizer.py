@@ -158,6 +158,7 @@ class Anonymizer:
         current_level = data
 
         for key in keys:
+            logger.debug(f"Checking key '{key}' in current level")
             if key in current_level:
                 current_level = current_level[key]
             else:
@@ -355,7 +356,12 @@ class Anonymizer:
                                         host_result = session.execute(select_hostinfo)
                                         for row in host_result:
                                             logger.debug(f"hostinfo: {row}")
-                                    select_stmt = text(f"SELECT id,{column_name} FROM {schema_name}.{table_name}")
+                                    limit_stmt = ""
+                                    if self.dry_run:
+                                        limit_string = os.environ.get("PGANON_DRY_RUN_LIMIT")
+                                        if limit_string:
+                                            limit_stmt = f" LIMIT {limit_string}"
+                                    select_stmt = text(f"SELECT id,{column_name} FROM {schema_name}.{table_name}{limit_stmt}")
                                     logger.debug(f"select_stmt: {select_stmt}")
                                     result = session.execute(select_stmt)
                                     updates = []

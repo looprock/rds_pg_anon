@@ -56,6 +56,7 @@ See `example_docker_run.sh` for a more thorough example.
 - PGANON_CREDS_SECRET: a secret to write credentials information. (Default: /infra/[PGANON_ENVIRONMENT]/rds/pg-anon/credentials)
 - PGANON_CROSS_ACCOUNT_ROLE_ARN: AWS role ARN to assume when writing remote secret. Setting this assumes --write-secret is true if PGANON_CROSS_ACCOUNT_EXTERNAL_ID also set.
 - PGANON_CROSS_ACCOUNT_EXTERNAL_ID: AWS external ID to use when writing remote secret. Setting this assumes --write-secret is true if PGANON_CROSS_ACCOUNT_ROLE_ARN also set.
+- PGANON_DRY_RUN_LIMIT: if --dry-run is set, limit the number of results to process.
 - PGANON_SAVE_DB: same as --savedb, This is primarily for testing and will cache the test database information and allow you run pganon against the same instance repeatedly.
 - PGANON_SOURCE_AWS_REGION - the AWS region is identified via the boto session, but if that fails, or you wish to overwrite this, you can use this variable.
 - PGANON_TARGET_AWS_REGION - the AWS region is identified via the boto session, but if that fails, or you wish to overwrite this, you can use this variable.
