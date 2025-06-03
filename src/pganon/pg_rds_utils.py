@@ -69,6 +69,7 @@ class PgRdsUtils:
             self.engine = retry_utils.get_engine_with_retries(self.engine)
             inspector = inspect(self.engine)
         schemas = inspector.get_schema_names()
+        logger.debug(f"schema names: {schemas}")
         data = {}
         data["schemas"] = {}
 
@@ -94,10 +95,10 @@ class PgRdsUtils:
             # populate tables and columns
             tables = {}
             for table in metadata.tables:
-                # logger.info(f"Processing table {table}")
+                logger.debug(f"Processing table {table}")
                 columns = {}  # Reset columns for each table
                 for column in metadata.tables[table].columns:
-                    # logger.info(f"Found column {table}.{column.name} of type {column.type}")
+                    logger.debug(f"Found column {table}.{column.name} of type {column.type}")
                     column_data = {}
                     column_data["type"] = column.type
                     # Check if the column is unique
@@ -116,10 +117,10 @@ class PgRdsUtils:
                             column_data["anonymize"]["unique"] = True
                         if column_is_foreign_key:
                             column_data["anonymize"]["foreign_key"] = True
-                        logger.debug(f"column: {column.name}")
-                        logger.debug(f"column_data['anonymize']:   {column_data['anonymize']}")
-                        logger.debug(f"column_is_unique:           {column_is_unique}")
-                        logger.debug(f"column_is_foreign_key:      {column_is_foreign_key}")
+                        # logger.debug(f"column: {column.name}")
+                        # logger.debug(f"column_data['anonymize']:   {column_data['anonymize']}")
+                        # logger.debug(f"column_is_unique:           {column_is_unique}")
+                        # logger.debug(f"column_is_foreign_key:      {column_is_foreign_key}")
                         # print(column_data)
                     #  logger.info(f"Adding column {column.name} to table {table}")
                     columns[column.name] = column_data  # Ensure this is inside the column loop

@@ -46,7 +46,7 @@ coverage.xml
 *.pot
 
 # custom
-.env
+.env*
 .venv
 .venv/*
 inspectstate_*.json

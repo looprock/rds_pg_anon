@@ -10,7 +10,7 @@ pg_anon requires a snapshot of the source instance.
 
 ## anonymization
 
-The current implentation of this only deals with dictionary structures and doesn't support replacing keys or values inside lists outside of those specified in the 'lists' section.
+The current implementation of this only deals with dictionary structures and doesn't support replacing keys or values inside lists outside of those specified in the 'lists' section.
 
 While uniqueness is enforceable for basic column-level anonymized values, it's not enforced inside JSON columns.
 

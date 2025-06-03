@@ -139,6 +139,10 @@ def main(**kwargs) -> None:
     s3_bucket_name = os.getenv("PGANON_S3_BUCKET_NAME")
     pganon_environment = os.getenv("PGANON_ENVIRONMENT")
 
+    if not create_admin_password:
+        if os.getenv("PGANON_CREATE_ADMIN_PASSWORD"):
+            create_admin_password = True
+
     if not all(
         [
             db_user,
@@ -263,14 +267,16 @@ def main(**kwargs) -> None:
     logger.info(f"aws_secret_name set to: {aws_secret_name}")
 
     # get the host of the replica
-    logger.info(f"processing host: {source_host}")
+    logger.info(f"processing host: {source_host}:{db_port}/{db_name}")
 
     state_utils = StateUtils()
 
     defaults = state_utils.read_defaults(source_host=source_host)
 
+    src_connection_string = f"postgresql://{db_user}:{db_password}@{source_host}:{db_port}/{db_name}"
+    logger.debug(f"connection_string: {src_connection_string}")
     source_engine_init = create_engine(
-        f"postgresql://{db_user}:{db_password}@{source_host}:{db_port}/{db_name}",
+        src_connection_string,
         connect_args={"connect_timeout": db_timeout},
     )
     source_engine = PgRdsUtils(source_engine_init, source_host, defaults)
