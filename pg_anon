@@ -41,6 +41,14 @@ from src.pganon.serializer import default_serializer  # noqa: E402
 
 aws_utils = AWSUtils()
 
+def random_pass(pass_length=32):
+    """Generate a random password."""
+    character_set = (
+        "abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    )
+    password = "".join(random.sample(character_set, pass_length))
+    return password
+
 @click.command()
 @click.option(
     "--create-admin-password",
@@ -103,15 +111,6 @@ aws_utils = AWSUtils()
 @click.option(
     "--write-secret", type=str, help="Create a secret in AWS Secrets Manager."
 )
-
-def random_pass(pass_length=32):
-    """Generate a random password."""
-    character_set = (
-        "abcdefghijklmnopqrstuvwxyz01234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    )
-    password = "".join(random.sample(character_set, pass_length))
-    return password
-
 def main(**kwargs) -> None:
     setup_logging()
     create_admin_password = kwargs.get("create_admin_password")
@@ -248,6 +247,12 @@ def main(**kwargs) -> None:
         logger.info("Test script failure.")
         exit(1)
 
+    # some operations don't require database connection
+    connect_db = True
+    if upload or download:
+        logger.info("Database connection not required for upload/download operations.")
+        connect_db = False
+
     try:
         source_host = aws_utils.get_rds_host_by_instance_id(
             rds_source_id, source_region_name
@@ -256,48 +261,48 @@ def main(**kwargs) -> None:
         logger.error(f"Failed to get the host of the source instance: {e}")
         exit(1)
 
-    if not os.getenv("PGANON_ENVIRONMENT"):
-        logger.info("Environment variable PGANON_ENVIRONMENT not set.")
-        exit(1)
-
-    if os.getenv("PGANON_CROSS_ACCOUNT_ROLE_ARN") or os.getenv("PGANON_CROSS_ACCOUNT_EXTERNAL_ID"):
-        write_secret = True
-        logger.info("Auto-enabling write_secret due to environment variables set: PGANON_CROSS_ACCOUNT_ROLE_ARN, PGANON_CROSS_ACCOUNT_EXTERNAL_ID")
-
-    if target_account_id:
-        if not os.getenv("PGANON_CROSS_ACCOUNT_ROLE_ARN") or not os.getenv("PGANON_CROSS_ACCOUNT_EXTERNAL_ID"):
-            logger.warning(f"External Account {target_account_id} referenced, but PGANON_CROSS_ACCOUNT_ROLE_ARN and/or PGANON_CROSS_ACCOUNT_EXTERNAL_ID not set to write remote secret.")
-
-    aws_secret_name = None
-    if write_secret:
-        # set a default value for the secret name
-        aws_secret_name = f"/infra/{os.getenv('PGANON_ENVIRONMENT')}/rds/pg-anon/credentials"
-        logger.info(f"Using default secret name: {aws_secret_name}")
-
-        # if the user has set a specific secret name, use that
-        if os.getenv("PGANON_CREDS_SECRET"):
-            aws_secret_name = os.getenv("PGANON_CREDS_SECRET")
-            logger.info(f"Using custom secret name: {aws_secret_name}")
-    else:
-        # if write_secret is False, set aws_secret_name to None
-        logger.info("write_secret is False, aws_secret_name set to None")
-
-    logger.info(f"aws_secret_name set to: {aws_secret_name}")
-
-    # get the host of the replica
-    logger.info(f"processing host: {source_host}:{db_port}/{db_name}")
-
     state_utils = StateUtils()
-
     defaults = state_utils.read_defaults(source_host=source_host)
 
-    src_connection_string = f"postgresql://{db_user}:{db_password}@{source_host}:{db_port}/{db_name}"
-    logger.debug(f"connection_string: {src_connection_string}")
-    source_engine_init = create_engine(
-        src_connection_string,
-        connect_args={"connect_timeout": db_timeout},
-    )
-    source_engine = PgRdsUtils(source_engine_init, source_host, defaults)
+    if connect_db:
+        if not os.getenv("PGANON_ENVIRONMENT"):
+            logger.info("Environment variable PGANON_ENVIRONMENT not set.")
+            exit(1)
+
+        if os.getenv("PGANON_CROSS_ACCOUNT_ROLE_ARN") or os.getenv("PGANON_CROSS_ACCOUNT_EXTERNAL_ID"):
+            write_secret = True
+            logger.info("Auto-enabling write_secret due to environment variables set: PGANON_CROSS_ACCOUNT_ROLE_ARN, PGANON_CROSS_ACCOUNT_EXTERNAL_ID")
+
+        if target_account_id:
+            if not os.getenv("PGANON_CROSS_ACCOUNT_ROLE_ARN") or not os.getenv("PGANON_CROSS_ACCOUNT_EXTERNAL_ID"):
+                logger.warning(f"External Account {target_account_id} referenced, but PGANON_CROSS_ACCOUNT_ROLE_ARN and/or PGANON_CROSS_ACCOUNT_EXTERNAL_ID not set to write remote secret.")
+
+        aws_secret_name = None
+        if write_secret:
+            # set a default value for the secret name
+            aws_secret_name = f"/infra/{os.getenv('PGANON_ENVIRONMENT')}/rds/pg-anon/credentials"
+            logger.info(f"Using default secret name: {aws_secret_name}")
+
+            # if the user has set a specific secret name, use that
+            if os.getenv("PGANON_CREDS_SECRET"):
+                aws_secret_name = os.getenv("PGANON_CREDS_SECRET")
+                logger.info(f"Using custom secret name: {aws_secret_name}")
+        else:
+            # if write_secret is False, set aws_secret_name to None
+            logger.info("write_secret is False, aws_secret_name set to None")
+
+        logger.info(f"aws_secret_name set to: {aws_secret_name}")
+
+        # get the host of the replica
+        logger.info(f"processing host: {source_host}:{db_port}/{db_name}")
+
+        src_connection_string = f"postgresql://{db_user}:{db_password}@{source_host}:{db_port}/{db_name}"
+        logger.debug(f"connection_string: {src_connection_string}")
+        source_engine_init = create_engine(
+            src_connection_string,
+            connect_args={"connect_timeout": db_timeout},
+        )
+        source_engine = PgRdsUtils(source_engine_init, source_host, defaults)
 
     # Set the output file name to match the original source host
     output_file_base = f"inspectstate_{source_host}.json"
@@ -306,6 +311,7 @@ def main(**kwargs) -> None:
     # save remote state to local
     save_remote_state = False
 
+    logger.debug(f"overwrite: {overwrite}")
     if os.path.exists(output_file) and not (
         overwrite or download or upload or local_state
     ):
