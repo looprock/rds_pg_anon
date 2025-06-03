@@ -151,6 +151,10 @@ def main(**kwargs) -> None:
     # this should trigger if:
     # 1) --create-admin-password is not used but PGANON_CREATE_ADMIN_PASSWORD is
     # 2) --create-admin-password is used with no argument (empty string value)
+
+    if os.getenv("PGANON_CREATE_SNAPSHOT"):
+        snapshot = True
+
     if create_admin_password:
         logger.info("Admin password set using --create-admin-password")
     else:
