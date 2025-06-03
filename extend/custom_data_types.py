@@ -7,7 +7,7 @@ fake = Faker()
 # Example:
 # {
 #     "anonymize": {
-#         "custom": { 
+#         "custom": {
 #             "method": "phone_number_list",
 #             "args": [3]
 #         }
@@ -44,3 +44,18 @@ class CustomDataTypes:
             return_dict["phoneNumber"] = fake.phone_number()
             return_list.append(return_dict)
         return return_list
+
+    def firstname_data_dict(self) -> dict:
+        return {"data": fake.first_name()}
+
+    def lastname_data_dict(self) -> dict:
+        return {"data": fake.last_name()}
+
+    def email_data_dict(self) -> dict:
+        return {"data": fake.email()}
+
+    def phone_data_dict(self) -> dict:
+        return {"data": fake.phone_number()}
+
+    def currentLocation_data_dict(self) -> dict:
+        return {"data": fake.city()}
