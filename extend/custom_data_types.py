@@ -21,7 +21,7 @@ class CustomDataTypes:
     def example(self):
         return "example_value"
 
-    def phone_number_list(self, args: list) -> list:
+    def phone_number_list(self, args: list = None) -> list:
         # set a default count of 2, but accept a count as an argument
         count = 2
         if args:
@@ -31,7 +31,7 @@ class CustomDataTypes:
             return_list.append(fake.phone_number())
         return return_list
 
-    def phone_dict_list(self, args: list) -> list:
+    def phone_dict_list(self, args: list = None) -> list:
         # [{'phoneType': 'office', 'phoneNumber': '555-555-1212'}]
         return_list = []
         # default phone types but accept a list of phone types to generate numbers for
