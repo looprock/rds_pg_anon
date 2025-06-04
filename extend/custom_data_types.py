@@ -60,14 +60,14 @@ class CustomDataTypes:
     def currentLocation_data_dict(self) -> dict:
         return {"data": fake.city()}
 
-def fake_data_dict(self) -> dict:
-    data = {}
-    data["firstName"] = {"data": fake.first_name()}
-    data["lastName"] = {"data": fake.last_name()}
-    data["email"] = {"data": fake.email()}
-    data["currentLocation"] = {"data": fake.city()}
-    data["phoneNumber"] = {"data": fake.phone_number()}
-    return data
+    def fake_data_dict(self) -> dict:
+        data = {}
+        data["firstName"] = {"data": fake.first_name()}
+        data["lastName"] = {"data": fake.last_name()}
+        data["email"] = {"data": fake.email()}
+        data["currentLocation"] = {"data": fake.city()}
+        data["phoneNumber"] = {"data": fake.phone_number()}
+        return data
 
-def fake_data_string(self) -> str:
-    return str(self.fake_data_dict())
+    def fake_data_string(self) -> str:
+        return str(self.fake_data_dict())
