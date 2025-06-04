@@ -377,8 +377,8 @@ def main(**kwargs) -> None:
         # get the stored state from the file or s3
         stored_state = state_utils.read_existing_state(output_file_base, s3_bucket_name, output_file, local_state)
         # create a replica of the instance
+        db_save_file = f"{pganon_data_dir}/db_save-{pganon_environment}.json"
         if savedb:
-            db_save_file = f"{pganon_data_dir}/db_save-{pganon_environment}.json"
             if os.path.exists(db_save_file):
                 logger.info(
                     f"Using cached database connection information from {db_save_file}."
@@ -449,7 +449,8 @@ def main(**kwargs) -> None:
                     del tmp_rds_instance["id"]
                     tmp_rds_instance["snapshot_id"] = snapshot_id
                     tmp_rds_instance["snapshot_arn"] = snapshot_info["snapshot_arn"]
-                    os.remove(db_save_file)
+                    if os.path.exists(db_save_file):
+                        os.remove(db_save_file)
                     final_log_message = f"Snapshot information: {tmp_rds_instance}"
                 with open(results_file_name, "w") as results_file:
                     json.dump(
