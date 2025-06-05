@@ -3,6 +3,7 @@ from .loglib import logger, setup_logging
 import boto3
 import json
 import sys
+import time
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
 import random
 import string
@@ -216,6 +217,9 @@ class AWSUtils:
 
             # Disable automated backups since this is just a temp instance
             disable_backups = os.getenv("PGANON_DISABLE_BACKUPS", "true").lower() == "true"
+            logger.info("Waiting for backup modification to complete...")
+            # Wait for the modification to start
+            time.sleep(600)
 
             if disable_backups:
                 logger.info(f"Disabling automated backups for temporary instance {new_instance_id}.")
@@ -230,7 +234,7 @@ class AWSUtils:
                     # Wait for the modification to complete
                     # The db_instance_available waiter will wait until the instance is available again
                     # after the modification completes
-                    modification_waiter = rds_client.get_waiter('db_instance_modified')
+                    modification_waiter = rds_client.get_waiter('db_instance_available')
                     modification_waiter.config.max_attempts = self.waiter_max_attempts
                     modification_waiter.config.delay = self.waiter_delay
                     modification_waiter.wait(DBInstanceIdentifier=new_instance_id)
