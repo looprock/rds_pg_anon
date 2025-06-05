@@ -443,6 +443,7 @@ def main(**kwargs) -> None:
                     # Share the snapshot with target account if specified
                     if target_account_id:
                         aws_utils.share_snapshot_with_account(snapshot_id, target_account_id)
+                        aws_utils.copy_snapshot_to_target_account(snapshot_id, snapshot_info["snapshot_arn"], target_account_id, target_region_name, source_region_name)
                     del tmp_rds_instance["port"]
                     del tmp_rds_instance["endpoint"]
                     tmp_rds_instance["source_instance_id"] = tmp_rds_instance["id"]
@@ -460,8 +461,6 @@ def main(**kwargs) -> None:
                         default=default_serializer,
                     )
                 logger.info(f"Results written to {results_file_name}.")
-                logger.info("pg_anon completed successfully!")
-                logger.info(final_log_message)
 
                 if aws_secret_name:
                     aws_utils.save_secret_to_aws(
@@ -470,6 +469,8 @@ def main(**kwargs) -> None:
                         target_account_id=target_account_id,
                         target_region=target_region_name,
                     )
+                logger.info("pg_anon completed successfully!")
+                logger.info(final_log_message)
             else:
                 logger.error("Anonymization failed.")
                 exit(1)

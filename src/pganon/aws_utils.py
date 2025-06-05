@@ -450,3 +450,67 @@ class AWSUtils:
         except ClientError as e:
             logger.error(f"Failed to share snapshot {snapshot_id} with account {target_account_id}: {e}")
             # Don't exit here as the snapshot was created successfully, sharing is just an additional step
+
+    def copy_snapshot_to_target_account(self, target_snapshot_id: str, source_snapshot_arn: str, target_account_id: str, target_region: str = None, source_region: str = None) -> None:
+        """Copy a snapshot from source account to target account."""
+        # if PGANON_CREATE_TARGET_SNAPSHOT is configured, use that value, otherwise default to true
+        if os.getenv("PGANON_CREATE_TARGET_SNAPSHOT"):
+            create_target_snapshot = os.getenv("PGANON_CREATE_TARGET_SNAPSHOT")
+        else:
+            create_target_snapshot = "true"
+
+        if create_target_snapshot != "true":
+            logger.info(f"Skipping creation of target snapshot {target_snapshot_id} as PGANON_CREATE_TARGET_SNAPSHOT is not set to 'true'")
+
+        target_region = target_region or boto3.Session().region_name
+        source_region = source_region or boto3.Session().region_name
+
+        # Assume the cross-account role for the target account
+        external_id = os.getenv("PGANON_CROSS_ACCOUNT_EXTERNAL_ID")
+        role_identifier = os.getenv("PGANON_CROSS_ACCOUNT_ROLE_ARN") or os.getenv("PGANON_CROSS_ACCOUNT_ROLE_NAME", "pg-anon-secrets-manager-role")
+
+        try:
+            # Assume the cross-account role
+            assumed_credentials = self.assume_cross_account_role(
+                target_account_id, role_identifier, external_id
+            )
+
+            # Create RDS client with assumed role credentials
+            target_rds_client = boto3.client(
+                'rds',
+                region_name=target_region,
+                **assumed_credentials
+            )
+
+            # Generate a unique snapshot identifier for the target account
+            # random_string = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+            # target_snapshot_id = f"pganon-copied-{random_string.lower()}"
+            logger.info(f"Copying snapshot {source_snapshot_arn} to target account {target_account_id} as {target_snapshot_id}")
+
+            # Copy the snapshot to the target account
+            copy_params = {
+                'SourceDBSnapshotIdentifier': source_snapshot_arn,
+                'TargetDBSnapshotIdentifier': target_snapshot_id,
+                'CopyTags': True
+            }
+
+            # Add KMS key if cross-region copy
+            if source_region != target_region:
+                # For cross-region copies, we might need a KMS key in the target region
+                kms_key_id = os.getenv("PGANON_TARGET_KMS_KEY_ID")
+                if kms_key_id:
+                    copy_params['KmsKeyId'] = kms_key_id
+
+            target_rds_client.copy_db_snapshot(**copy_params)
+
+            # Wait for the copy to complete
+            waiter = target_rds_client.get_waiter('db_snapshot_completed')
+            waiter.config.max_attempts = self.waiter_max_attempts
+            waiter.config.delay = self.waiter_delay
+            waiter.wait(DBSnapshotIdentifier=target_snapshot_id)
+
+            logger.info(f"Snapshot copied successfully to target account as {target_snapshot_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to copy snapshot to target account {target_account_id}: {e}")
+            raise

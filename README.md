@@ -54,9 +54,11 @@ See `example_docker_run.sh` for a more thorough example.
 - PGPORT: source database instance port, default: '5432'
 - PGANON_CREATE_ADMIN_PASSWORD: If set to 'true', a random password will be generated for the admin user. If set to anything else, that value will be used.
 - PGANON_CREATE_SNAPSHOT: if set to any value, same as --snapshot argument
+- PGANON_CREATE_TARGET_SNAPSHOT: if a cross account role is defined, create a snapshot in the target account. Set to something other than 'true' to disable (default: true)
 - PGANON_CREDS_SECRET: a secret to write credentials information. (Default: /infra/[PGANON_ENVIRONMENT]/rds/pg-anon/credentials)
 - PGANON_CROSS_ACCOUNT_ROLE_ARN: AWS role ARN to assume when writing remote secret. Setting this assumes --write-secret is true if PGANON_CROSS_ACCOUNT_EXTERNAL_ID also set.
 - PGANON_CROSS_ACCOUNT_EXTERNAL_ID: AWS external ID to use when writing remote secret. Setting this assumes --write-secret is true if PGANON_CROSS_ACCOUNT_ROLE_ARN also set.
+- PGANON_DISABLE_BACKUPS: Backups are disabled since the instance created is only intended to be temporary. Backups can also interfere with anonymization since they restart the instance. Set this to 'false' to ENABLE backups. (Default: 'true')
 - PGANON_DRY_RUN_LIMIT: if --dry-run is set, limit the number of results to process.
 - PGANON_SAVE_DB: same as --savedb, This is primarily for testing and will cache the test database information and allow you run pganon against the same instance repeatedly.
 - PGANON_SOURCE_AWS_REGION - the AWS region is identified via the boto session, but if that fails, or you wish to overwrite this, you can use this variable.
