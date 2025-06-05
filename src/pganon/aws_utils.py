@@ -213,15 +213,35 @@ class AWSUtils:
             waiter.config.delay = self.waiter_delay
             waiter.wait(DBInstanceIdentifier=new_instance_id)
             logger.info(f"RDS instance {new_instance_id} is now available.")
+
+            # Disable automated backups since this is just a temp instance
+            disable_backups = os.getenv("PGANON_DISABLE_BACKUPS", "true").lower() == "true"
+
+            if disable_backups:
+                logger.info(f"Disabling automated backups for temporary instance {new_instance_id}.")
+                try:
+                    # Modify the instance to disable backups
+                    rds_client.modify_db_instance(
+                        DBInstanceIdentifier=new_instance_id,
+                        BackupRetentionPeriod=0,
+                        ApplyImmediately=True
+                    )
+
+                    # Wait for the modification to complete
+                    # The db_instance_available waiter will wait until the instance is available again
+                    # after the modification completes
+                    modification_waiter = rds_client.get_waiter('db_instance_available')
+                    modification_waiter.config.max_attempts = self.waiter_max_attempts
+                    modification_waiter.config.delay = self.waiter_delay
+                    modification_waiter.wait(DBInstanceIdentifier=new_instance_id)
+                    logger.info(f"Automated backups disabled for instance {new_instance_id}.")
+
+                except ClientError as backup_error:
+                    logger.warning(f"Failed to disable backups for {new_instance_id}: {backup_error}. Continuing without disabling backups.")
+
             # get the endpoint of the new instance
             new_instance_details = rds_client.describe_db_instances(DBInstanceIdentifier=new_instance_id)
-            # disable automated backups since this is just a temp instance
-            # Disabled due to: enabling and disabling backups can result in a brief I/O suspension that lasts from a few seconds to a few minutes, depending on the size and class of your DB instance.
-            # rds_client.modify_db_instance(
-            #     DBInstanceIdentifier=new_instance_id,
-            #     BackupRetentionPeriod=0,
-            #     ApplyImmediately=True
-            # )
+
             if 'KmsKeyId' in new_instance_details['DBInstances'][0]:
                 kms_key_id = new_instance_details['DBInstances'][0]['KmsKeyId']
             else:
