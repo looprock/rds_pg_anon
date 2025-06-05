@@ -230,7 +230,7 @@ class AWSUtils:
                     # Wait for the modification to complete
                     # The db_instance_available waiter will wait until the instance is available again
                     # after the modification completes
-                    modification_waiter = rds_client.get_waiter('db_instance_available')
+                    modification_waiter = rds_client.get_waiter('db_instance_modified')
                     modification_waiter.config.max_attempts = self.waiter_max_attempts
                     modification_waiter.config.delay = self.waiter_delay
                     modification_waiter.wait(DBInstanceIdentifier=new_instance_id)
