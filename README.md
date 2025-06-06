@@ -63,6 +63,7 @@ See `example_docker_run.sh` for a more thorough example.
 - PGANON_SAVE_DB: same as --savedb, This is primarily for testing and will cache the test database information and allow you run pganon against the same instance repeatedly.
 - PGANON_SOURCE_AWS_REGION - the AWS region is identified via the boto session, but if that fails, or you wish to overwrite this, you can use this variable.
 - PGANON_TARGET_AWS_REGION - the AWS region is identified via the boto session, but if that fails, or you wish to overwrite this, you can use this variable.
+- PGANON_TARGET_SNAPSHOT_KMS_KEY_ID - Setting this triggers the creation of a new snapshot with the specified KMS key ID in the target account. Requires: PGANON_CROSS_ACCOUNT_ROLE_ARN, PGANON_CROSS_ACCOUNT_EXTERNAL_ID
 - PGANON_WAITER_DELAY: boto3 waiter delay between attempts (Default: 30)
 - PGANON_WAITER_MAX_ATTEMPTS: boto3 waiter maximum attempts (Default: 120)
 

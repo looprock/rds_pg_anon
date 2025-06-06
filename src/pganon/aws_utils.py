@@ -302,7 +302,7 @@ class AWSUtils:
 
             # For AWS Batch scenarios, assume a cross-account role
             external_id = os.getenv("PGANON_CROSS_ACCOUNT_EXTERNAL_ID")
-            role_identifier = os.getenv("PGANON_CROSS_ACCOUNT_ROLE_ARN") or os.getenv("PGANON_CROSS_ACCOUNT_ROLE_NAME", "pg-anon-secrets-manager-role")
+            role_identifier = os.getenv("PGANON_CROSS_ACCOUNT_ROLE_ARN")
 
             try:
                 # Assume the cross-account role
@@ -451,23 +451,27 @@ class AWSUtils:
             logger.error(f"Failed to share snapshot {snapshot_id} with account {target_account_id}: {e}")
             # Don't exit here as the snapshot was created successfully, sharing is just an additional step
 
-    def copy_snapshot_to_target_account(self, target_snapshot_id: str, source_snapshot_arn: str, target_account_id: str, target_region: str = None, source_region: str = None) -> None:
+    def copy_snapshot_to_target_account(self, target_snapshot_id: str, source_snapshot_arn: str, target_account_id: str, target_region: str, source_region: str) -> None:
         """Copy a snapshot from source account to target account."""
-        # if PGANON_CREATE_TARGET_SNAPSHOT is configured, use that value, otherwise default to true
-        if os.getenv("PGANON_CREATE_TARGET_SNAPSHOT"):
-            create_target_snapshot = os.getenv("PGANON_CREATE_TARGET_SNAPSHOT")
+        # if PGANON_TARGET_SNAPSHOT_KMS_KEY_ID is configured, use that value, otherwise default to true
+        if os.getenv("PGANON_TARGET_SNAPSHOT_KMS_KEY_ID"):
+            target_snapshot_kms_key_id = os.getenv("PGANON_TARGET_SNAPSHOT_KMS_KEY_ID")
         else:
-            create_target_snapshot = "true"
+            target_snapshot_kms_key_id = None
 
-        if create_target_snapshot != "true":
-            logger.info(f"Skipping creation of target snapshot {target_snapshot_id} as PGANON_CREATE_TARGET_SNAPSHOT is not set to 'true'")
-
-        target_region = target_region or boto3.Session().region_name
-        source_region = source_region or boto3.Session().region_name
+        if not target_snapshot_kms_key_id:
+            logger.info(f"Skipping creation of target snapshot {target_snapshot_id} as PGANON_TARGET_SNAPSHOT_KMS_KEY_ID is not set")
 
         # Assume the cross-account role for the target account
         external_id = os.getenv("PGANON_CROSS_ACCOUNT_EXTERNAL_ID")
-        role_identifier = os.getenv("PGANON_CROSS_ACCOUNT_ROLE_ARN") or os.getenv("PGANON_CROSS_ACCOUNT_ROLE_NAME", "pg-anon-secrets-manager-role")
+        if not external_id:
+            logger.error("PGANON_CROSS_ACCOUNT_EXTERNAL_ID is not set")
+            raise ValueError("PGANON_CROSS_ACCOUNT_EXTERNAL_ID is not set")
+
+        role_identifier = os.getenv("PGANON_CROSS_ACCOUNT_ROLE_ARN")
+        if not role_identifier:
+            logger.error("PGANON_CROSS_ACCOUNT_ROLE_ARN is not set")
+            raise ValueError("PGANON_CROSS_ACCOUNT_ROLE_ARN is not set")
 
         try:
             # Assume the cross-account role
@@ -491,6 +495,7 @@ class AWSUtils:
             copy_params = {
                 'SourceDBSnapshotIdentifier': source_snapshot_arn,
                 'TargetDBSnapshotIdentifier': target_snapshot_id,
+                'KmsKeyId': target_snapshot_kms_key_id,
                 'CopyTags': False
             }
 
