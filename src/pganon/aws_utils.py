@@ -491,7 +491,7 @@ class AWSUtils:
             copy_params = {
                 'SourceDBSnapshotIdentifier': source_snapshot_arn,
                 'TargetDBSnapshotIdentifier': target_snapshot_id,
-                'CopyTags': True
+                'CopyTags': False
             }
 
             # Add KMS key if cross-region copy
