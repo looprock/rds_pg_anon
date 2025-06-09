@@ -499,12 +499,14 @@ class AWSUtils:
                 'CopyTags': False
             }
 
-            # Add KMS key if cross-region copy
-            if source_region != target_region:
-                # For cross-region copies, we might need a KMS key in the target region
-                kms_key_id = os.getenv("PGANON_TARGET_KMS_KEY_ID")
-                if kms_key_id:
-                    copy_params['KmsKeyId'] = kms_key_id
+            # # Add KMS key if cross-region copy
+            # if source_region != target_region:
+            #     # For cross-region copies, we might need a KMS key in the target region
+            #     kms_key_id = os.getenv("PGANON_TARGET_KMS_KEY_ID")
+            #     if kms_key_id:
+            #         copy_params['KmsKeyId'] = kms_key_id
+
+            logger.info(f"Copying snapshot using parameters {copy_params}")
 
             target_rds_client.copy_db_snapshot(**copy_params)
 
