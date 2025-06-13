@@ -461,6 +461,7 @@ class AWSUtils:
 
         if not target_snapshot_kms_key_id:
             logger.info(f"Skipping creation of target snapshot {target_snapshot_id} as PGANON_TARGET_SNAPSHOT_KMS_KEY_ID is not set")
+            return
 
         # Assume the cross-account role for the target account
         external_id = os.getenv("PGANON_CROSS_ACCOUNT_EXTERNAL_ID")
@@ -474,7 +475,31 @@ class AWSUtils:
             raise ValueError("PGANON_CROSS_ACCOUNT_ROLE_ARN is not set")
 
         try:
-            # Assume the cross-account role
+            # First, ensure the snapshot is shared with the target account from the source account
+            logger.info(f"Ensuring snapshot {target_snapshot_id} is shared with account {target_account_id}")
+            source_rds_client = boto3.client('rds', region_name=source_region)
+            
+            try:
+                source_rds_client.modify_db_snapshot_attribute(
+                    DBSnapshotIdentifier=target_snapshot_id,
+                    AttributeName='restore',
+                    ValuesToAdd=[target_account_id]
+                )
+                logger.info(f"Successfully shared snapshot {target_snapshot_id} with account {target_account_id}")
+            except ClientError as e:
+                if "already exists" in str(e):
+                    logger.info(f"Snapshot {target_snapshot_id} was already shared with account {target_account_id}")
+                else:
+                    logger.error(f"Failed to share snapshot: {e}")
+                    raise
+            
+            # Wait a moment for the sharing to propagate
+            import time
+            logger.info("Waiting 5 seconds for snapshot sharing to propagate...")
+            time.sleep(5)
+            
+            # Now assume the cross-account role to perform the copy from the target account
+            logger.info(f"Assuming role {role_identifier} in target account {target_account_id}")
             assumed_credentials = self.assume_cross_account_role(
                 target_account_id, role_identifier, external_id
             )
@@ -486,12 +511,9 @@ class AWSUtils:
                 **assumed_credentials
             )
 
-            # Generate a unique snapshot identifier for the target account
-            # random_string = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-            # target_snapshot_id = f"pganon-copied-{random_string.lower()}"
+            # Copy the snapshot in the target account
             logger.info(f"Copying snapshot {source_snapshot_arn} to target account {target_account_id} as {target_snapshot_id}")
 
-            # Copy the snapshot to the target account
             copy_params = {
                 'SourceDBSnapshotIdentifier': source_snapshot_arn,
                 'TargetDBSnapshotIdentifier': target_snapshot_id,
@@ -499,18 +521,35 @@ class AWSUtils:
                 'CopyTags': False
             }
 
-            # # Add KMS key if cross-region copy
-            # if source_region != target_region:
-            #     # For cross-region copies, we might need a KMS key in the target region
-            #     kms_key_id = os.getenv("PGANON_TARGET_KMS_KEY_ID")
-            #     if kms_key_id:
-            #         copy_params['KmsKeyId'] = kms_key_id
-
             logger.info(f"Copying snapshot using parameters {copy_params}")
 
-            target_rds_client.copy_db_snapshot(**copy_params)
+            try:
+                target_rds_client.copy_db_snapshot(**copy_params)
+                logger.info("Snapshot copy initiated successfully")
+            except ClientError as e:
+                error_code = e.response['Error']['Code']
+                error_message = str(e)
+                
+                if error_code == 'KMSKeyNotAccessibleFault':
+                    logger.error(f"KMS key access error: {error_message}")
+                    logger.error("This error typically means:")
+                    logger.error("1. The source snapshot's KMS key doesn't grant decrypt permissions to the target account")
+                    logger.error("2. The target account role doesn't have permission to use the source KMS key")
+                    logger.error(f"3. The KMS key condition might restrict access to specific services")
+                    logger.error("")
+                    logger.error("To fix this, ensure the source KMS key policy includes:")
+                    logger.error(f"  - Principal: arn:aws:iam::{target_account_id}:root")
+                    logger.error(f"  - Actions: kms:Decrypt, kms:DescribeKey, kms:CreateGrant")
+                    logger.error(f"  - Condition: kms:ViaService = rds.{source_region}.amazonaws.com")
+                elif error_code == 'DBSnapshotNotFound':
+                    logger.error(f"Snapshot not found: {error_message}")
+                    logger.error("This might mean the snapshot wasn't properly shared or doesn't exist")
+                else:
+                    logger.error(f"Failed to copy snapshot: {error_message}")
+                raise
 
             # Wait for the copy to complete
+            logger.info("Waiting for snapshot copy to complete...")
             waiter = target_rds_client.get_waiter('db_snapshot_completed')
             waiter.config.max_attempts = self.waiter_max_attempts
             waiter.config.delay = self.waiter_delay
