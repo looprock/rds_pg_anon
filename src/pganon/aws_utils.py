@@ -492,12 +492,11 @@ class AWSUtils:
                 else:
                     logger.error(f"Failed to share snapshot: {e}")
                     raise
-            
+
             # Wait a moment for the sharing to propagate
-            import time
             logger.info("Waiting 5 seconds for snapshot sharing to propagate...")
             time.sleep(5)
-            
+
             # Now assume the cross-account role to perform the copy from the target account
             logger.info(f"Assuming role {role_identifier} in target account {target_account_id}")
             assumed_credentials = self.assume_cross_account_role(
